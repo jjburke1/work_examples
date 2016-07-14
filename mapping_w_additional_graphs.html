@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+body { font: 12px Arial;}
+svg {
+  font: 10px sans-serif;
+}
+.axis path, .axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.county {
+stroke: white
+stroke-width: 1px
+	}
+
+ .active {
+  fill: orange;
+  }
+ #tooltip {
+        position: absolute;
+        width: 130px;
+        height: auto;
+        padding: 10px;
+		padding-left: 25px;
+        background-color: white;
+        -webkit-border-radius: 10px;
+        -moz-border-radius: 10px;
+        border-radius: 10px;
+        -webkit-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+        -moz-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+        box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+        pointer-events: none;
+}
+#startdate, #enddate, #programid, #typeid, #svgprogram, #svgtype, #region, #starttext, #endtext, #colorchoice, #key, #title, #quoteslimit, #quoteslimitlabel,
+#claimslimit, #claimslimitlabel,#starttext_lr,#label_lr, #label_rtr, #endtext_lr, #covlinechoice {
+	position: absolute;
+	}
+	
+#title {
+	top: 20px;
+	left: 400px;
+	font-size: 25px;
+}
+
+#covlinechoice {
+	top: 70px;
+	left: 140px;
+}
+#starttext {
+	bottom:20px;
+	left: 200px;
+	fill: white;
+}
+#label_rtr {
+	bottom: 20px;
+	left: 30px;
+font-weight: bold;
+}
+#starttext_lr {
+	bottom:130px;
+	left: 200px;
+	fill: white;
+}
+#label_lr {
+bottom: 130px;
+left: 20px;
+font-weight: bold;
+}
+#colorchoice {
+	top: 15px;
+	left: 263px;
+}
+#endtext {
+	bottom:20px;
+	left: 340px;
+	fill: white;
+}
+#endtext_lr {
+	bottom:130px;
+	left: 340px;
+	fill: white;
+}
+#region {
+ left: 15px;
+ top: 40px;
+}
+
+#startdate, #enddate, #programid, #typeid{
+	top: 15px;
+	}
+#programid {
+	left: 15px;
+}
+#typeid {
+	left: 90px;
+}
+#startdate {
+	left: 280px;
+}
+#startdate input {
+	width: 600px;
+	axis: true;
+}
+
+
+.hidden {
+        display: none;
+}
+
+#tooltip p {
+        margin: 0;
+        font-family: sans-serif;
+        font-size: 16px;
+        line-height: 20px;
+}
+#brushsvg {
+	position: absolute;
+	bottom: 50px;
+	left: 30px;
+}
+#brushsvg_lr {
+	position: absolute;
+	bottom: 150px;
+	left: 30px;
+}
+.brush .extent {
+  fill-opacity: .125;
+  shape-rendering: crispEdges;
+}
+.brush_lr .extent_lr {
+  fill-opacity: .125;
+  shape-rendering: crispEdges;
+}
+
+.resize path {
+  fill: #666;
+  fill-opacity: .8;
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+.key {
+
+}
+#quoteslimit {
+	top: 40px;
+	left: 90px;
+	width: 50px;
+}
+#quoteslimitlabel{
+	top: 45px;
+	left: 150px;
+}
+#claimslimit {
+	top: 40px;
+	left: 270px;
+	width: 50px;
+}
+#claimslimitlabel{
+	top: 45px;
+	left: 325px;
+}
+
+
+a {
+	top: 0%;
+	right: 0%;
+	position: fixed;
+	
+}
+
+</style>
+<head>
+	<link rel="stylesheet" type="text/css" href="css/charts_css.css">
+	<title>Florida Map</title>
+</head>
+
+<header> 
+<button type="button" id = "region">County</button>
+
+<input type="text" id="quoteslimit" value = 1000>
+<input type="text" id="claimslimit" value = 200>
+</header>
+<body>
+<a href="index.html">Back</a>
+
+
+<div id="tooltip" class="hidden">
+        <p><span id="value">100</span></p>
+</div>
+
+<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script>
+var stop_redo = 0;
+var stop_rtr_first = 0;
+var stop_rtr_resize = 0;
+var stop_lr_first = 0;
+var stop_lr_resize =0;
+var new_max = 0;
+var new_min = 0;
+var formatdate = d3.time.format("%Y-%m-%d");
+var parseDate = d3.time.format("%Y-%m-%d").parse;
+var prior_max_lr = 0;
+var prior_min_lr = 0;
+var prior_max_rtr = 0;
+var prior_min_rtr = 0;
+d3.select("body").append("text").attr("id","label_lr").text("Premium and Loss Range");
+d3.select("body").append("text").attr("id","label_rtr").text("Quotes and Sales Range");
+d3.select("body").append("text").attr("id","starttext").text("Start Date:");
+d3.select("body").append("text").attr("id","endtext").text("End Date:");
+d3.select("body").append("text").attr("id","starttext_lr").text("Start Month:");
+d3.select("body").append("text").attr("id","endtext_lr").text("End Month:");
+d3.select("body").append("text").attr("id","title");
+d3.select("body").append("text").attr("id","quoteslimitlabel").text("Min Quotes Count");
+d3.select("body").append("text").attr("id","claimslimitlabel").text("Min ECY Amount");
+var begindate = 200001;
+var enddingdate = 210001;
+var begindate_lr = 200001;
+var enddingdate_lr = 210001;
+var region2 = 1;
+
+var progop = d3.select("header").append("select").attr("id","programid").on("change",redo_data2);
+progop.append("option").text("Total");
+progop.append("option").text("WIN");
+progop.append("option").text("SEL");
+progop.append("option").text("OPT");
+progop.append("option").text("ICN")
+;
+var typeop = d3.select("header").append("select").attr("id","typeid");
+typeop.append("option").attr("value","").text("All Quotes");
+
+var colorop = d3.select("header").append("select").attr("id","colorchoice");
+colorop.append("option").attr("value",1).text("Conversion");
+colorop.append("option").attr("value",2).text("Quotes");
+colorop.append("option").attr("value",3).text("Sales");
+colorop.append("option").attr("value",4).text("Loss Ratio");
+colorop.append("option").attr("value",5).text("Frequency");
+colorop.append("option").attr("value",6).text("Premium per ECY");
+colorop.append("option").attr("value",7).text("Earned Premium");
+colorop.append("option").attr("value",8).text("Earned Car Years");
+
+var color2 = document.getElementById("colorchoice");
+var color3 = color2.options[color2.selectedIndex].value;
+var covLine = d3.select("header").append("select").attr("id","covlinechoice")
+covLine.append("option").attr("value",1).text("Total");
+covLine.append("option").attr("value",2).text("PIP");
+covLine.append("option").attr("value",3).text("PD");
+covLine.append("option").attr("value",4).text("BI");
+covLine.append("option").attr("value",5).text("CMP");
+covLine.append("option").attr("value",6).text("COL");
+covLine.on("change",redo_data);
+var covline2 = document.getElementById("covlinechoice");
+var covline = covline2.options[covline2.selectedIndex].value;
+
+var prog2 = document.getElementById("programid");
+var prog = prog2.options[prog2.selectedIndex].value;
+
+var type2 = document.getElementById("typeid");
+var type = type2.options[type2.selectedIndex].value;
+var k = 1;
+var centered = null;
+var rerun = "yes";
+var w = window,
+d = document,
+e = d.documentElement,
+    g = d.getElementsByTagName('body')[0],
+    x = w.innerWidth || e.clientWidth || g.clientWidth,
+    y = w.innerHeight|| e.clientHeight|| g.clientHeight;
+w = x-20;
+h = y-20;
+function updateWindow(){
+// ---------------------------------------resize window start---------------------
+    x = w.innerWidth || e.clientWidth || g.clientWidth;
+    y = w.innerHeight|| e.clientHeight|| g.clientHeight;
+w = x-20;
+h = y-20;
+brushw = w/2;
+brushh = h/8;
+brushw_lr = w/2;
+brushh_lr = h/8;
+    svg.attr("width", w).attr("height", h);
+	svg.select("rect").attr("width", w).attr("height", h);
+
+// ---------------------------------------start php---------------------
+
+// --------------------------------resize function end-----------------------------------------
+
+
+stop_lr_resize = 1;
+stop_rtr_resize = 1;
+loss_data_brush();
+
+rtr_brush();
+
+
+
+
+}
+function updateWindow2()
+{
+stop_redo = 1;
+stop_rtr_resize = 0;
+stop_lr_resize = 1;
+updateWindow();
+}
+window.onresize = updateWindow;
+window.onload = updateWindow2;
+var centered;
+var formatconv = d3.format(".2%");
+var formatquote = d3.format(",.0f");
+var svg = d3.select("body").append("svg")
+	.attr("height",h)
+	.attr("width",w);
+	
+	
+function rtr_brush() 
+{
+var prog2 = document.getElementById("programid");
+var prog = prog2.options[prog2.selectedIndex].value;
+var max_rtr = d3.json("php/php_rtr_max.php?program="+prog+"", function(error, data) {
+data.forEach(function(d) {
+d3.selectAll(".brushback").remove();
+var brushmargin = {top: 0, right: h/24, bottom: 20, left: h/32}
+brushw = w/2 - brushmargin.left - brushmargin.right;
+brushh = h/12 - brushmargin.top - brushmargin.bottom;
+var svgbrush = d3.select("body")
+.append("svg").attr("class","brushback").attr("id","brushsvg")
+.attr("height",brushh + brushmargin.top + brushmargin.bottom)
+.attr("width",brushw+brushmargin.left+brushmargin.right)
+.attr("position","absolute");
+svgbrush
+.append("rect").attr("height",brushh+ brushmargin.top)
+.attr("width",brushw+brushmargin.left+brushmargin.right).attr("fill","white");
+svgbrush2 = svgbrush
+.append("g").attr("transform", "translate(" + brushmargin.left + "," + brushmargin.top + ")");
+new_max = d.MAX_RTR;
+new_min = d.MIN_RTR;
+var format = d3.time.format("%Y%m");
+var format2 = d3.time.format("%Y%m");
+var format3 = d3.time.format("%Y-%m");
+if (stop_rtr_first == 0)
+{
+prior_max_rtr = format.parse(d.MAX_RTR);
+prior_min_rtr = format.parse(d.BRUSH_EXTENT);
+}
+// --------------------------------------------------AXIS-----------------------------------------
+var x = d3.scale.linear()
+    .range([0, brushw-20]);
+var brushtime = d3.time.scale()
+	.domain([format.parse(new_min),format.parse(new_max)])
+    .range([0, 1]);
+var brushaxis = d3.time.scale()
+	.domain([format.parse(new_min),format.parse(new_max)])
+    .range([0, brushw-20]);
+
+// --------------------------------------------------AXIS-----------------------------------------
+
+var brush = d3.svg.brush()
+    .x(x)
+    .extent([d3.min([1,d3.max([brushtime(prior_min_rtr),0])]), d3.max([0,d3.min([1,brushtime(prior_max_rtr)])])])
+    .on("brushstart", brushstart)
+    .on("brush", brushmove)
+	.on("brushend", brushend);
+var arc = d3.svg.arc()
+    .outerRadius(brushh / 2)
+    .startAngle(0)
+    .endAngle(function(d, i) { return i ? -Math.PI : Math.PI; });
+	
+svgbrush2.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(10," + (brushh) + ")")
+    .call(d3.svg.axis().scale(brushaxis).orient("bottom")
+	.ticks(brushw/100));
+	
+var brushg = svgbrush2.append("g")
+    .attr("transform", "translate(10," + 0 + ")")
+    .attr("class", "brush")
+    .call(brush);
+	
+brushg.selectAll(".resize").append("path")
+    .attr("transform", "translate(0," +  brushh / 2 + ")")
+    .attr("d", arc);
+brushg.selectAll("rect")
+    .attr("height", brushh);
+
+	
+
+brushstart();
+brushmove();
+brushend();
+
+function brushstart() {
+  var s = brush.extent();
+  svgbrush2.classed("selecting", true);
+  
+  begindate = format2(brushtime.invert(s[0]));
+  enddingdate = format2(brushtime.invert(s[1]));
+prior_max_rtr = brushtime.invert(s[1]);
+prior_min_rtr = brushtime.invert(s[0]);
+}
+
+function brushmove() {
+  var s = brush.extent();
+  begindate = format2(brushtime.invert(s[0]));
+  enddingdate = format2(brushtime.invert(s[1]));
+prior_max_rtr = brushtime.invert(s[1]);
+prior_min_rtr = brushtime.invert(s[0]);
+d3.select("#starttext").text("Start Date: " + format3(brushtime.invert(s[0])));
+d3.select("#endtext").text("End Date: " + format3(brushtime.invert(s[1])));
+}
+function brushend() {
+if(stop_rtr_first == 0 | stop_rtr_resize == 0)
+{
+redo_data();
+}
+}
+stop_rtr_first = 1;
+stop_rtr_resize = 0;
+});
+});};
+function loss_data_brush() 
+{
+var prog2 = document.getElementById("programid");
+var prog = prog2.options[prog2.selectedIndex].value;
+var max_rtr = d3.json("php/php_lr_max.php?program="+prog+"", function(error, data_lr) {
+data_lr.forEach(function(d) {
+d3.selectAll(".brushback_lr").remove();
+var brushmargin_lr = {top: 0, right: h/24, bottom: 20, left: h/32}
+brushw_lr = w/2 - brushmargin_lr.left - brushmargin_lr.right;
+brushh_lr = h/12 - brushmargin_lr.top - brushmargin_lr.bottom;
+var svgbrush_lr = d3.select("body").append("svg").attr("class","brushback_lr").attr("id","brushsvg_lr")
+.attr("height",brushh_lr + brushmargin_lr.top + brushmargin_lr.bottom)
+.attr("width",brushw_lr+brushmargin_lr.left+brushmargin_lr.right)
+.attr("position","absolute");
+svgbrush_lr.append("rect").attr("class","brushback_lr").attr("height",brushh_lr+ brushmargin_lr.top)
+.attr("width",brushw_lr+brushmargin_lr.left+brushmargin_lr.right).attr("fill","white");
+svgbrush2_lr = svgbrush_lr
+.append("g").attr("transform", "translate(" + brushmargin_lr.left + "," + brushmargin_lr.top + ")");
+var new_max_lr = d.MAX_LR;
+var new_min_lr = d.MIN_LR;
+var format_lr = d3.time.format("%Y%m");
+var format2_lr = d3.time.format("%Y%m");
+var format3_lr = d3.time.format("%Y-%m");
+if (stop_lr_first == 0)
+{
+prior_max_lr = format_lr.parse(d.MAX_LR);
+prior_min_lr = format_lr.parse(d.BRUSH_EXTENT_LR);
+}
+// --------------------------------------------------AXIS-----------------------------------------
+var x = d3.scale.linear()
+    .range([0, brushw_lr-20]);
+
+var brushtime_lr = d3.time.scale()
+	.domain([format_lr.parse(new_min_lr),format_lr.parse(new_max_lr)])
+    .range([0, 1]);
+var brushaxis_lr = d3.time.scale()
+	.domain([format_lr.parse(new_min_lr),format_lr.parse(new_max_lr)])
+    .range([0, brushw_lr-20]);
+
+// --------------------------------------------------AXIS-----------------------------------------
+
+var brush_lr = d3.svg.brush()
+    .x(x)
+    .extent([d3.min([1,d3.max([0,brushtime_lr(prior_min_lr)])]), d3.max([d3.min([1,brushtime_lr(prior_max_lr)]),0])])
+    .on("brushstart", brushstart_lr)
+    .on("brush", brushmove_lr)
+	.on("brushend", brushend_lr);
+var arc_lr = d3.svg.arc()
+    .outerRadius(brushh_lr / 2)
+    .startAngle(0)
+    .endAngle(function(d, i) { return i ? -Math.PI : Math.PI; });
+	
+svgbrush2_lr.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(10," + (brushh_lr) + ")")
+    .call(d3.svg.axis().scale(brushaxis_lr).orient("bottom")
+	.ticks(brushw_lr/100));
+	
+var brushg_lr = svgbrush2_lr.append("g")
+    .attr("transform", "translate(10," + 0 + ")")
+    .attr("class", "brush_lr")
+    .call(brush_lr);
+	
+brushg_lr.selectAll(".resize").append("path")
+    .attr("transform", "translate(0," +  brushh_lr / 2 + ")")
+    .attr("d", arc_lr);
+brushg_lr.selectAll("rect")
+    .attr("height", brushh_lr);
+
+	
+
+
+brushstart_lr();
+brushmove_lr();
+brushend_lr();
+
+function brushstart_lr() {
+  var s_lr = brush_lr.extent();
+  svgbrush2_lr.classed("selecting", true);
+prior_max_lr = brushtime_lr.invert(s_lr[1]);
+prior_min_lr = brushtime_lr.invert(s_lr[0]);
+}
+
+function brushmove_lr() {
+  var s_lr = brush_lr.extent();
+  begindate_lr = format2_lr(brushtime_lr.invert(s_lr[0]));
+  enddingdate_lr = format2_lr(brushtime_lr.invert(s_lr[1]));
+prior_max_lr = brushtime_lr.invert(s_lr[1]);
+prior_min_lr = brushtime_lr.invert(s_lr[0]);
+d3.select("#starttext_lr").text("Start Month: " + format3_lr(brushtime_lr.invert(s_lr[0])));
+d3.select("#endtext_lr").text("End Month: " + format3_lr(brushtime_lr.invert(s_lr[1])));
+}
+function brushend_lr() {
+
+if(stop_lr_first == 1 & stop_lr_resize == 0)
+{
+redo_data();
+}
+}
+
+
+stop_lr_first = 1;
+stop_lr_resize = 0;
+});
+});};
+	
+	
+
+var projection = d3.geo.albersUsa()
+                       .translate([-500, -730])
+                       .scale([6300]);
+					   
+var zoom = d3.behavior.zoom()
+    .translate(projection.translate())
+    .scale(projection.scale())
+    .scaleExtent([h, h*100])
+    .on("zoom", zoomed);
+var path = d3.geo.path().projection(projection);
+var color = d3.scale.linear()
+                    .rangeRound([0,510])
+					.clamp(true)
+					;
+var color_number = d3.scale.linear()
+                    .rangeRound([0,510])
+					.clamp(true)
+					;
+svgg = svg.append("g")
+	.call(zoom);
+var svggrect = svgg.append("rect")
+	.attr("x",0)
+	.attr("y",0)
+	.attr("height",h)
+	.attr("width",w)
+	.attr("fill","lightblue")
+	.on("click",function(d) {
+	
+	d3.select("#charts_div").remove();
+	});
+
+
+
+function zoomed() {
+  projection.translate(d3.event.translate).scale(d3.event.scale);
+  svgg.selectAll("path").attr("d", path);
+}
+
+
+
+d3.selection.prototype.moveToFront = function() {
+  return this.each(function(){
+    this.parentNode.appendChild(this);
+  });
+};
+//----------------------------------------------------------------------------- REDO DATA -----------------------------------------------------------------
+function redo_data2()
+{
+stop_rtr_resize = 1;
+stop_lr_resize = 1;
+
+setTimeout(loss_data_brush(),10);
+setTimeout(rtr_brush(),10);
+setTimeout(redo_data(),10);
+}
+
+
+function redo_data()
+{
+var prog2 = document.getElementById("programid");
+var prog = prog2.options[prog2.selectedIndex].value;
+var type2 = document.getElementById("typeid");
+var type = type2.options[type2.selectedIndex].value;
+var color2 = document.getElementById("colorchoice");
+var color3 = color2.options[color2.selectedIndex].value;
+var covline2 = document.getElementById("covlinechoice");
+var covline = covline2.options[covline2.selectedIndex].value;
+var cov_map = {1:"total",2:"pip",3:"pd",4:"bi",5:"cmp",6:"col",7:"umbi",8:"med",9:"rent",10:"liab",11:"physdamage"};
+
+d3.selectAll(".county").remove();
+d3.selectAll(".zips").remove();
+
+var d3json = d3.json("php/php_rtr_county.php?program=" 
+	+prog+"&type="+type+"&startdate="+begindate
+	+"&enddate="+enddingdate+"&cov="+cov_map[covline]+"&startdate_lr="
+	+begindate_lr+"&enddate_lr="+enddingdate_lr+"", function(error, data_county_rtr) {
+
+
+
+
+	var d3json2 = d3.json("php/php_rtr_zip.php?program="+prog+"&type="
+		+type+"&startdate="+begindate+"&enddate="+enddingdate+"&cov="
+		+cov_map[covline]+"&startdate_lr="+begindate_lr+"&enddate_lr="+enddingdate_lr+"", function(error, data_zips) {
+
+
+
+colorop.on("change",redo_data);
+
+var color2 = document.getElementById("colorchoice");
+var color3 = color2.options[color2.selectedIndex].value;
+var covline2 = document.getElementById("covlinechoice");
+var covline = covline2.options[covline2.selectedIndex].value;
+
+redraw();
+d3.select("#region").on("click",redraw2);
+d3.select("#quoteslimit").on("change",redraw);
+d3.select("#claimslimit").on("change",redraw);
+function redraw2()
+{if (region2 == 2) {	d3.select("#region").text("County");
+	region2 = 1;
+	var region3 = "county";}
+else 
+{	d3.select("#region").text("Zip Code");
+	region2 = 2;
+	var region3 = "zip";}
+redraw();
+
+}
+
+function redraw() {
+
+var color2 = document.getElementById("colorchoice");
+var color3 = color2.options[color2.selectedIndex].value;
+var covline2 = document.getElementById("covlinechoice");
+var covline = covline2.options[covline2.selectedIndex].value;
+svgg.selectAll(".county").remove();
+svgg.selectAll(".zips").remove();
+var zip_or_county = {1:data_county_rtr,
+			2:data_zips};
+
+
+		   
+d3.json("geojson/floridacounty.json", function(json_county) {
+d3.json("geojson/floridazips.json", function(json_zips) {
+		for (var i = 0; i <data_county_rtr.length; i++) {
+		for (var j = 0; j < json_county.features.length; j++) {
+		var jsonCounty = json_county.features[j].properties.NAME.toUpperCase();
+		if (data_county_rtr[i].COUNTY == jsonCounty) {
+			json_county.features[j].properties.sales = +data_county_rtr[i].SALES;
+			json_county.features[j].properties.quotes = +data_county_rtr[i].QUOTES;
+			json_county.features[j].properties.wp = +data_county_rtr[i].WRITTEN_PREM;
+			json_county.features[j].properties.ep = +data_county_rtr[i].EARNED_PREM;
+			json_county.features[j].properties.w_exp = +data_county_rtr[i].WRITTEN_ECY;
+			json_county.features[j].properties.e_exp = +data_county_rtr[i].EARNED_ECY;
+			json_county.features[j].properties.c_l = +data_county_rtr[i].CALENDAR_LOSSES;
+			json_county.features[j].properties.c_c_c = +data_county_rtr[i].CALENDAR_LOSS_COUNT;
+			json_county.features[j].properties.a_l = +data_county_rtr[i].ACCIDENT_LOSSES;
+			json_county.features[j].properties.a_c_c = +data_county_rtr[i].ACCIDENT_LOSS_COUNT;
+			break;
+		}}}
+		
+			
+
+	
+		for (var i = 0; i <data_zips.length; i++) {
+		for (var j = 0; j < json_zips.features.length; j++) {
+		var jsonZip = json_zips.features[j].properties.ZCTA5CE10;
+		if (data_zips[i].ZIP == jsonZip) {
+			json_zips.features[j].properties.sales = +data_zips[i].SALES;
+			json_zips.features[j].properties.quotes = +data_zips[i].QUOTES;
+			json_zips.features[j].properties.wp = +data_zips[i].WRITTEN_PREM;
+			json_zips.features[j].properties.ep = +data_zips[i].EARNED_PREM;
+			json_zips.features[j].properties.w_exp = +data_zips[i].WRITTEN_ECY;
+			json_zips.features[j].properties.e_exp = +data_zips[i].EARNED_ECY;
+			json_zips.features[j].properties.c_l = +data_zips[i].CALENDAR_LOSSES;
+			json_zips.features[j].properties.c_c_c = +data_zips[i].CALENDAR_LOSS_COUNT;
+			json_zips.features[j].properties.a_l = +data_zips[i].ACCIDENT_LOSSES;
+			json_zips.features[j].properties.a_c_c = +data_zips[i].ACCIDENT_LOSS_COUNT;
+			break;
+		}}}	
+
+var cov_map = {1:"total",2:"pip",3:"pd",4:"bi",5:"cmp",6:"col",7:"umbi",8:"med",9:"rent",10:"liab",11:"physdamage"};
+var json_zip_or_county = {1:json_county.features, 2:json_zips.features};
+if (color3 < 4)
+{
+color.domain([
+           d3.min(json_zip_or_county[region2], function(d){var color_map = {1:d.properties.sales/d.properties.quotes,
+		   2:d.properties.quotes,3:d.properties.sales};
+		   if((color3 > 1 | d.properties.quotes >= quoteslimit.value))  {return color_map[color3]; }}),
+                d3.max(json_zip_or_county[region2],function(d) {var color_map = {1:d.properties.sales/d.properties.quotes,
+		   2:d.properties.quotes,3:d.properties.sales};
+				if((color3 > 1 | d.properties.quotes >= quoteslimit.value))  {return color_map[color3];}
+				else {return 0;}})  
+        ]);
+}
+else
+{if (color3 == 4) {color.domain([d3.max(json_zip_or_county[region2],function(d){
+if(d.properties.e_exp  >= claimslimit.value) 
+{return d.properties.c_l/d.properties.ep}}),
+d3.min(json_zip_or_county[region2],function(d){
+if(d.properties.e_exp >= claimslimit.value) 
+{return d.properties.c_l/d.properties.ep}})]);}
+
+else if (color3 == 5) {color.domain([d3.max(json_zip_or_county[region2],function(d){
+if(d.properties.e_exp  >= claimslimit.value) 
+{return d.properties.c_c_c/d.properties.e_exp}}),
+d3.min(json_zip_or_county[region2],function(d){
+if(d.properties.e_exp >= claimslimit.value) 
+{return d.properties.c_c_c/d.properties.e_exp}})]);}
+else if (color3 == 6) {color.domain([d3.min(json_zip_or_county[region2],function(d){
+if(d.properties.e_exp >= claimslimit.value) 
+{return d.properties.ep/d.properties.e_exp}}),
+d3.max(json_zip_or_county[region2],function(d){
+if(d.properties.e_exp >= claimslimit.value) 
+{return d.properties.ep/d.properties.e_exp}})]);}
+else if (color3 == 7) {color.domain([d3.min(json_zip_or_county[region2],function(d){
+if(d.properties.e_exp >= claimslimit.value) 
+{return d.properties.ep}}),
+d3.max(json_zip_or_county[region2],function(d){
+if(d.properties.e_exp >= claimslimit.value) 
+{return d.properties.ep}})]);}
+else if (color3 == 8) {color.domain([d3.min(json_zip_or_county[region2],function(d){
+if(d.properties.e_exp >= claimslimit.value) 
+{return d.properties.e_exp}}),
+d3.max(json_zip_or_county[region2],function(d){
+if(d.properties.e_exp >= claimslimit.value) 
+{return d.properties.e_exp}})]);}
+}
+	
+//---------------------------------------------------legend---------------------------------------------------------------
+
+
+function color_proto(formula, limit_check, text, target, minimum, maximum) {
+	this.form = formula;
+	this.limit = limit_check;
+	this.label = text;
+	this.mid = target;
+	this.min = minimum;
+	this.max = maximum;
+}
+var conv_map = {"Total" :.1, "WIN" : .04, "SEL":.04,"OPT":.04,"ICN":.04};
+var freq_map = {"pip" : .12, "pd": .1, "bi": .06, "cmp": .13, "col":.21};
+
+
+var color_mapping = {
+1 : new color_proto("d.properties.sales/d.properties.quotes", "d.properties.quotes >= quoteslimit.value", "Conversion",
+		conv_map[prog], 
+		"d3.min([d3.min(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}}),color_mapping[color3].mid])",
+		"d3.max([d3.max(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}}),color_mapping[color3].mid])"),
+2 : new color_proto("d.properties.quotes", "d.properties.quotes >= quoteslimit.value", "Quotes",
+		"(((eval(color_mapping[color3].max) - eval(color_mapping[color3].min)) / 2) + eval(color_mapping[color3].min))",
+		"d3.min(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}})",
+		"d3.max(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}})"),
+3 : new color_proto("d.properties.sales", "d.properties.quotes >= quoteslimit.value", "Sales",
+		"(((eval(color_mapping[color3].max) - eval(color_mapping[color3].min)) / 2) + eval(color_mapping[color3].min))",
+		"d3.min(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}})",
+		"d3.max(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}})"),
+4 : new color_proto("d.properties.c_l/d.properties.ep", "d.properties.e_exp >= claimslimit.value", "Loss Ratio",
+		.61, 
+		"d3.min([d3.min(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}}),color_mapping[color3].mid])",
+		"d3.max([d3.max(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}}),color_mapping[color3].mid])"),
+5 : new color_proto("d.properties.c_c_c/d.properties.e_exp", "d.properties.e_exp >= claimslimit.value", "Frequency",
+		freq_map[cov_map[covline]], 
+		"d3.min([d3.min(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}}),color_mapping[color3].mid])",
+		"d3.max([d3.max(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}}),color_mapping[color3].mid])"),
+6 : new color_proto("d.properties.ep/d.properties.e_exp", "d.properties.e_exp >= claimslimit.value", "Premium per ECY",
+		"(((eval(color_mapping[color3].max) - eval(color_mapping[color3].min)) / 2) + eval(color_mapping[color3].min))",
+		"d3.min(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}})",
+		"d3.max(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}})"),
+7 : new color_proto("d.properties.ep", "d.properties.e_exp >= claimslimit.value", "Earned Premium",
+		"(((eval(color_mapping[color3].max) - eval(color_mapping[color3].min)) / 2) + eval(color_mapping[color3].min))",
+		"d3.min(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}})",
+		"d3.max(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}})"),
+8 : new color_proto("d.properties.e_exp", "d.properties.e_exp >= claimslimit.value", "Earned Car Years",
+		"(((eval(color_mapping[color3].max) - eval(color_mapping[color3].min)) / 2) + eval(color_mapping[color3].min))",
+		"d3.min(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}})",
+		"d3.max(json_zip_or_county[region2], function(d) {if(eval(color_mapping[color3].limit)) " +
+			"{return eval(color_mapping[color3].form);}})")
+};
+
+
+d3.selectAll(".legend").remove();
+var minimumColor = "#0000FF";
+var middleColor = "#FFFFFF";
+var maximumColor = "#FF0000";
+var keyw = 140, keyh = 300;
+var legkey = svg.append("g").attr("class","legend").attr("transform","translate(10,50)");
+var legend = legkey.append("defs").append("svg:linearGradient").attr("id", "gradient").attr("x1", "100%").attr("y1", "0%").attr("x2", "100%").attr("y2", "100%").attr("spreadMethod", "pad");
+
+legend.append("stop").attr("offset", "0%").attr("stop-color", maximumColor).attr("stop-opacity", 1);
+var key_midpoint = (1 - ((eval(color_mapping[color3].mid)-eval(color_mapping[color3].min))/
+	(eval(color_mapping[color3].max)-eval(color_mapping[color3].min)))) * 100 + "%";
+legend.append("stop").attr("offset", key_midpoint).attr("stop-color", middleColor).attr("stop-opacity", 1);
+legend.append("stop").attr("offset", "100%").attr("stop-color", minimumColor).attr("stop-opacity", 1);
+
+legkey.append("rect").attr("stroke","white").attr("width", keyw - 100).attr("height", keyh - 100).style("fill", "url(#gradient)").attr("transform", "translate(0,10)");
+var color_scale = d3.scale.linear()
+	.range(["#0000FF","#FFFFFF","#FF0000"]);
+
+
+
+var y = d3.scale.linear().range([200, 0]);
+color_scale.domain([
+eval(color_mapping[color3].min),
+eval(color_mapping[color3].mid),
+eval(color_mapping[color3].max)
+]);
+y.domain([
+eval(color_mapping[color3].min),
+eval(color_mapping[color3].max)
+]);
+
+
+var yAxis = d3.svg.axis().scale(y).orient("right");
+
+legkey.append("g")
+	.attr("class", "y axis")
+	.attr("transform", "translate(42,10)")
+	.call(yAxis)
+	.append("text")
+		.attr("transform", "rotate(-90)")
+		.attr("y", -30).attr("dy", ".71em")
+		.style("text-anchor", "end")
+		.text(color_mapping[color3].label);
+	
+	
+
+	
+        svgg.selectAll("path")
+           .data(json_county.features)
+           .enter()
+           .append("path")
+		   .attr("class","county")
+		   .attr("id", function(d) {return d.properties.NAME})
+           .attr("d", path)
+		   .style("stroke","white").style("stroke-width","1px")
+		   .style("fill",function(d) {if(eval(color_mapping[color3].limit)) {
+			return color_scale(eval(color_mapping[color3].form));
+		   }
+		   else
+		   {return "#DCDCDC";}
+		   })
+		   .on("click",function(d) {
+		   var loc = d3.select(this).attr("id");
+		   make_charts(prog, cov_map[covline] ,loc,"county")});
+		   
+svgg.selectAll("path")
+	.on("mousemove", function(d, i) {d3.select(this).style("stroke","black").style("stroke-width",(5/k + "px"));
+	var sel = d3.select(this);
+  sel.moveToFront();
+	var self = d.title;
+	var mouse = d3.mouse(svg.node()).map( function(d) {return parseInt(d);});
+	    var centroid = path.centroid(d);
+    x = centroid[0];
+    y = centroid[1];
+	d3.select("#tooltip")
+  .style("left",mouse[0]+"px")
+  .style("top",mouse[1]+"px")
+	.html("County: " + d.properties.NAME + "<br/>" 
+	+ "Sales: " + formatquote(d.properties.sales) + "<br/>" 
+	+ "Quotes: " + formatquote(d.properties.quotes) 
+	+ "<br/>" + "Conversion: " + formatconv(d.properties.sales/d.properties.quotes)
+	+ "<br/>" + "EP: " + formatquote(d.properties.ep)
+	+ "<br/>" + "WP: " + formatquote(d.properties.wp)
+	+ "<br/>" + "ECY: " + formatquote(d.properties.e_exp)
+	+ "<br/>" + "WCY: " + formatquote(d.properties.w_exp)
+	+ "<br/>" + "Losses: " + formatquote(d.properties.c_c_c)
+	+ "<br/>" + "Paid: " + formatquote(d.properties.c_l)
+	+ "<br/>" + "Loss Ratio: " + formatconv(d.properties.c_l/d.properties.ep)
+	+ "<br/>" + "Frequency: " + formatconv(d.properties.c_c_c/d.properties.e_exp)
+	+ "<br/>" + "EP/ECY: " + formatquote(d.properties.ep/d.properties.e_exp));
+	d3.select("#tooltip").classed("hidden",false);})
+	.on("mouseout", function(d) {d3.select(this).style("stroke-width","1px").style("stroke","white");
+	d3.select("#tooltip").classed("hidden",true);});
+	
+//------------------------------------------------------------------- if statement for zip vs county -------------------------------------------------------------------
+ 
+if (region2 == 2) {
+
+svgg.append("g")
+	.attr("class","zips")
+	.selectAll("path")
+	.data(json_zips.features)
+	.enter()
+	.append("path")
+	.attr("id", function(d) {return d.properties.ZCTA5CE10})
+	.attr("d",path)
+	.style("fill",function(d) {if(eval(color_mapping[color3].limit)) {
+			return color_scale(eval(color_mapping[color3].form));
+		   }
+		   else
+		   {return "#DCDCDC";}
+		   })
+	.style("stroke","grey").style("stroke-width",".5px")
+	.on("click",function(d) {
+	var loc = d3.select(this).attr("id");
+	make_charts(prog, cov_map[covline],loc,"zip")});
+	svgg.select(".zips").selectAll("path").on("mousemove", function(d, i) { {d3.select(this).style("stroke","black").style("stroke-width",1+"px");};
+	var sel = d3.select(this);
+  sel.moveToFront();
+	var mouse = d3.mouse(svg.node()).map( function(d) {return parseInt(d);});
+	    var centroid = path.centroid(d);
+    x = centroid[0];
+    y = centroid[1];
+	d3.select("#tooltip")
+  .style("left",mouse[0]+"px")
+  .style("top",mouse[1]+"px")
+	.html("Zip Code: " + d.properties.ZCTA5CE10 + "<br/>" 
+	+ "Sales: " + formatquote(d.properties.sales) + "<br/>" 
+	+ "Quotes: " + formatquote(d.properties.quotes) + "<br/>" 
+	+ "Conversion: " + formatconv(d.properties.sales/d.properties.quotes)
+	+ "<br/>" + "EP: " + formatquote(d.properties.ep)
+	+ "<br/>" + "WP: " + formatquote(d.properties.wp)
+	+ "<br/>" + "ECY: " + formatquote(d.properties.e_exp)
+	+ "<br/>" + "WCY: " + formatquote(d.properties.w_exp)
+	+ "<br/>" + "Losses: " + formatquote(d.properties.c_c_c)
+	+ "<br/>" + "Paid: " + formatquote(d.properties.c_l)
+	+ "<br/>" + "Loss Ratio: " + formatconv(d.properties.c_l/d.properties.ep)
+	+ "<br/>" + "Frequency: " + formatconv(d.properties.c_c_c/d.properties.e_exp)
+	+ "<br/>" + "EP/ECY: " + formatquote(d.properties.ep/d.properties.e_exp));
+	d3.select("#tooltip").classed("hidden",false);})
+		.on("mouseout", function(d) {d3.select(this).style("stroke-width",".5px").style("stroke","grey");
+	d3.select("#tooltip").classed("hidden",true);});
+svgg.selectAll(".county").style("fill","none").style("stroke-opacity",.5).moveToFront();
+
+
+
+svgg.selectAll(".county").style("fill","none").style("stroke-opacity",.5).moveToFront();
+
+
+}
+});
+
+});
+var region_map = {1:" by County, ", 2:" by Zip, "};
+
+d3.select("#title").text(function(d) {
+var format = d3.time.format("%Y-%m");
+var format2 = d3.time.format("%Y%m");
+if(color3 <= 3) {return prog + region_map[region2] + format(format2.parse(begindate)) + " to " + format(format2.parse(enddingdate))
+}
+else
+{
+var format = d3.time.format("%Y-%m");
+var format2 = d3.time.format("%Y%m");
+return prog + region_map[region2] + format(format2.parse(begindate_lr)) + " to " + format(format2.parse(enddingdate_lr))
+}});
+
+	
+ }
+
+
+
+
+});
+
+});
+}
+
+
+
+function make_charts(program, coverage, location, type) {
+d3.select("#charts_div").remove();
+
+function charts_proto(a, b, c) {
+this.name = a;
+this.id = b;
+this.calculation = c;
+};
+
+charts_array = [new charts_proto("Conversion", "chart-conv", "+d.SALES/+d.QUOTES"),
+	new charts_proto("Loss Ratio", "chart-lr","+d.CALENDAR_LOSSES/+d.EARNED_PREM"),
+	new charts_proto("Frequency", "chart-freq","+d.CALENDAR_LOSS_COUNT/+d.EARNED_ECY"),
+	new charts_proto("Earned Premium", "chart-ep","+d.EARNED_PREM"),
+	new charts_proto("Quotes", "chart-quotes","+d.QUOTES"),
+	new charts_proto("EP/ECY", "chart-ep-ecy","+d.EARNED_PREM/+d.EARNED_ECY")];
+	
+
+var charts = d3.select("body").append("div").attr("id","charts_div");
+
+
+var charts_header = charts.append("svg").attr("id","charts_head");
+charts_header.append("text")
+	.attr("y","50%")
+	.text(program + "-" + location + "-" + coverage);
+	
+
+charts_header.append("text")
+	.attr("y","50%")
+	.attr("x","20%")
+	.style("fill","red")
+	.text(program + "-" + location + "-" + coverage);
+	
+charts_header.append("line")
+	.style("stroke","red")
+		.attr("x1", "15%")
+		.attr("x2", "19%")
+		.attr("y1","50%")
+		.attr("y2","50%")
+		.style("stroke-width","2px");
+
+charts_header.append("text")
+	.attr("y","50%")
+	.attr("x","40%")
+	.style("fill","blue")
+	.text(program + "-" + "Florida" + "-" + coverage);
+	
+charts_header.append("line")
+	.style("stroke","blue")
+		.attr("x1", "35%")
+		.attr("x2", "39%")
+		.attr("y1","50%")
+		.attr("y2","50%")
+		.style("stroke-width","2px");
+
+charts_header.append("text")
+	.attr("y","50%")
+	.attr("x","60%")
+	.style("fill","red")
+	.text(program + "-" + location + "-" + coverage + " Best Fit Line");
+	
+charts_header.append("line")
+	.style("stroke","red")
+		.attr("x1", "55%")
+		.attr("x2", "59%")
+		.attr("y1","50%")
+		.attr("y2","50%")
+		.style("stroke-width","1px")
+		.style("stroke-dasharray",("3,3"));
+
+charts_header.append("text")
+	.attr("y","50%")
+	.attr("x","85%")
+	.style("fill","blue")
+	.text(program + "-" + "Florida" + "-" + coverage + " Best Fit Line");
+	
+charts_header.append("line")
+	.style("stroke","blue")
+		.attr("x1", "80%")
+		.attr("x2", "84%")
+		.attr("y1","50%")
+		.attr("y2","50%")
+		.style("stroke-width","1px")
+		.style("stroke-dasharray",("3,3"));
+	
+
+charts_header.on("click", function(d) {
+	d3.select("#charts_div").remove();
+});
+d3.json("php/php_location_charts.php?prog="+program+"&cov="+coverage+"&loc="+location+"&table="+type+"", function(error, charts_data) {
+
+var graphs = [];
+for (var i = 0; i < charts_array.length; i++)	{
+var chart = charts
+	.append("svg")
+	.attr("class","charts_body")
+	.attr("id",charts_array[i].id);
+	
+
+var chart_height = (chart.style("height")
+	.substring(0,chart.style("height").length - 2))/1;
+
+var chart_width = (chart.style("width")
+	.substring(0,chart.style("width").length - 2))/1;
+	
+chart.attr("viewBox", "0 0 " + chart_width + " " + chart_height)
+	.attr("preserveAspectRatio","none");
+	
+chart.append("rect")
+		.attr("width","100%")
+		.attr("height","100%")
+		.attr("fill","white");
+
+var h = chart_height*(8/10);
+var w = chart_width*(75/100);		
+chart2 = chart.append("g")
+	.attr("transform","translate("+(chart_width*(1/10))+","+(chart_height*(1/15))+")");
+var c_id = charts_array[i].id;
+var yScale = d3.scale.linear()
+	.range([h,0])
+	.domain([0,d3.max(charts_data.filter(function(d) {return d.TYPE == "LOCATION" | c_id == "chart-conv"
+		| c_id == "chart-lr" | c_id == "chart-freq" | c_id == "chart-ep-ecy";}), 
+		function(d) {return eval(charts_array[i].calculation);})]);
+		
+var yScale2 = d3.scale.linear()
+	.range([h,0])
+	.domain([0,d3.max(charts_data, 
+		function(d) {return eval(charts_array[i].calculation);})]);
+	
+var yAxis = d3.svg.axis()
+	.scale(yScale)
+	.orient("left");
+	
+	
+var yAxis2 = d3.svg.axis()
+	.scale(yScale2)
+	.orient("right");
+	
+var xScale = d3.scale.ordinal()
+	.rangePoints([0, w])
+	.domain(charts_data.map(function(d) {return d.REPORT_QUARTER;}));
+	
+var xAxis = d3.svg.axis()
+	.scale(xScale)
+	.orient("bottom");
+	
+
+chart2.append("g")
+	.call(yAxis)
+	.style("style","red")
+	.attr("class","y axis main first");
+	
+if(c_id == "chart-ep" | c_id == "chart-quotes")
+{
+	
+chart2.append("g")
+	.call(yAxis2)
+	.attr("class","y axis main second")
+	.attr("transform","translate(" + w + ",0)");
+}
+	
+chart2.append("g")
+	.call(xAxis)
+	.attr("class","x axis main")
+	.attr("transform","translate(0,"+h+")");
+	
+chart.append("text")
+	.attr("class","title")
+	.attr("x","50%")
+	.attr("y","1%")
+	.text(charts_array[i].name);
+	
+var valueline = d3.svg.line()
+		.interpolate("linear")
+		.x(function(d) {return xScale(d.REPORT_QUARTER);})
+		.y(function(d) {return yScale(eval(charts_array[i].calculation));});	
+		
+	
+var valueline2 = d3.svg.line()
+		.interpolate("linear")
+		.x(function(d) {return xScale(d.REPORT_QUARTER);})
+		.y(function(d) {return yScale2(eval(charts_array[i].calculation));});	
+
+chart2.append("path")
+	.data(charts_data.filter(function(d) {return d.TYPE == "LOCATION";}))
+	.style("stroke","red")
+	.attr("d",valueline(charts_data.filter(function(d) {return d.TYPE == "LOCATION";})))
+	.attr("stroke-width",2);
+	
+	
+chart2.append("path")
+	.data(charts_data.filter(function(d) {return d.TYPE == "TOTAL";}))
+	.style("stroke","blue")
+	.attr("d",valueline2(charts_data.filter(function(d) {return d.TYPE == "TOTAL";})))
+	.attr("stroke-width",2);
+	
+for (var j = 0; j < 2; j++) {
+var best_fit_data = charts_data.filter(function(d) {if(j == 0) 
+	{return d.TYPE == "LOCATION";}
+	else
+	{return d.TYPE == "TOTAL";}})
+	
+console.log(best_fit_data);
+xLabels = best_fit_data
+	.map(function(d) {return d.REPORT_QUARTER});
+xSeries = d3.range(1, xLabels.length + 1);
+ySeries = best_fit_data.map(function(d) {return eval(charts_array[i].calculation)});
+
+leastSquaresCoeff = leastSquares(xSeries,ySeries);
+
+trendData = [[xLabels[0],(leastSquaresCoeff[0] + leastSquaresCoeff[1]),
+	xLabels[xLabels.length - 1], (leastSquaresCoeff[0] * xLabels.length + leastSquaresCoeff[1])]];
+chart2.selectAll(".trendline")
+	.data(trendData)
+	.enter()
+	.append("line")
+		.style("stroke",function(d) {if(j == 0) 
+		{return "red";}
+		else
+		{return"blue";}
+		})
+		.attr("x1", function(d) {return xScale(d[0])})
+		.attr("y1", function(d) {if(j == 0)
+		{return yScale(d[1])}
+		else
+		{return yScale2(d[1])}
+		})
+		.attr("x2", function(d) {return xScale(d[2])})
+		.attr("y2", function(d) {if(j == 0)
+		{return yScale(d[3])}
+		else
+		{return yScale2(d[3])}
+		})
+		.style("stroke-width",1)
+		.style("stroke-dasharray",("3,3"));
+
+
+}
+
+chart.on("click",function(d) {
+	if(d3.select(this).attr("class") == "charts_body")
+	{
+	d3.selectAll(".charts_body").style("z-index",0);
+	d3.select(this)
+		.style("z-index",10)
+		.attr("class","selected_div");
+	;}
+	else
+	{
+	d3.select(this)
+		.style("z-index",0)
+		.attr("class","charts_body")
+		.style("z-index",0);
+	}
+	});
+}
+
+
+		
+	// returns slope, intercept and r-square of the line
+	function leastSquares(xSeries, ySeries) {
+		var reduceSumFunc = function(prev, cur) { return prev + cur; };
+		
+		var xBar = xSeries.reduce(reduceSumFunc) * 1.0 / xSeries.length;
+		var yBar = ySeries.reduce(reduceSumFunc) * 1.0 / ySeries.length;
+
+		var ssXX = xSeries.map(function(d) { return Math.pow(d - xBar, 2); })
+			.reduce(reduceSumFunc);
+		
+		var ssYY = ySeries.map(function(d) { return Math.pow(d - yBar, 2); })
+			.reduce(reduceSumFunc);
+			
+		var ssXY = xSeries.map(function(d, i) { return (d - xBar) * (ySeries[i] - yBar); })
+			.reduce(reduceSumFunc);
+			
+		var slope = ssXY / ssXX;
+		var intercept = yBar - (xBar * slope);
+		var rSquare = Math.pow(ssXY, 2) / (ssXX * ssYY);
+		
+		return [slope, intercept, rSquare];
+	}
+
+
+
+});
+};
+
+
+
+</script>
+
+
+</body>

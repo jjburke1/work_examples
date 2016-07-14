@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+path {
+	fill: none;
+}
+#rRadius
+{
+	position:absolute;
+	top: 50%;
+	right: 5%;
+	transform: rotate(270deg);
+}
+.keys {
+	position: absolute;
+	top: 2px;
+	left: 30%;
+}
+
+body {
+  font: 11px sans-serif;
+}
+
+text {
+	pointer-events: none;
+}
+
+.axis path{
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.axis line {
+    stroke: lightgrey;
+	opactiy: .5;
+}
+
+
+.button {
+	fill:white;
+}
+
+.button:hover {
+	fill: rgb(220,220,220);
+}
+
+circle {
+	stroke: black;
+	opacity: .75;
+}
+
+#legenddiv, #optionsdiv { 
+	opacity: .75; 
+	position: absolute; 
+	top: 10%; 
+	height: 60%; 
+	background-color: white;
+	right: 2%; 
+	width: 30%; 
+	border: solid;
+}
+	
+.hidden {
+	display:none;
+}
+
+.semihidden {
+	opacity: .3;
+}
+
+.mostlyhidden {
+	opacity: .15;
+	pointer-events: none;
+}
+
+#graphdiv { 
+	position: absolute;
+	top: 10%;
+	left: 20%;
+	border: solid;
+	background-color: rgb(255,255,255);
+	opacity: .9;
+}
+	
+.divgraphs {
+	border: solid;
+}
+	
+#close_box { 
+	position: absolute;
+}
+
+.divobjects {
+	position: absolute;
+	top: 11%;
+	width: 10%;
+}
+
+#find_box {
+	position: absolute;
+	bottom: 10%;
+	left: 19%;
+	width: 50%;
+}
+
+#find_text {
+	position: absolute;
+	bottom: 10%;
+	right: 85%;
+}
+
+#x_min {
+	left: 13%;
+}
+
+#x_max {
+	left: 38%;
+}
+
+#y_min {
+	left: 63%;
+}
+
+#y_max {
+	left: 88%;
+}
+
+a {
+	top: 0%;
+	right: 0%;
+	position: fixed;
+	
+}
+</style>
+<head>
+	<title>Scatter Plots</title>
+</head>
+<body>
+<a href="index.html">Back</a>
+
+<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script>
+var dataset;
+
+var data_used = {"Reported Frequency" : {"label" : "Reported ___ Frequency", "num" : "CALENDAR_CLAIM_COUNT", "den" : "ECY"},
+	"Calendar Loss Ratio": {"label" : "Calendar ___ Loss Ratio", "num" : "CALENDAR_CLAIM", "den" : "EP"},
+	"Accident Frequency" :{"label" : "Accident ___ Frequency", "num" : "ACCIDENT_CLAIM_COUNT", "den" : "ECY"},
+	"Accident Loss Ratio" :{"label" : "Accident ___ Loss Ratio", "num" : "ACCIDENT_CLAIM", "den" : "EP"},
+	"Conversion" : {"label" : "Conversion", "num" : "SALES", "den" : "QUOTES"},
+	"% of Prog ECY's" : {"label" : "Percent of ___ ECY's", "num" : "d.values.ECY", "den" : "d3.sum(data.filter(" +
+			"function(d) {" +
+				"return d.PROGRAM == prog & +d.Q_COMP >= date_ranges.losses_start & +d.Q_COMP <= date_ranges.losses_end" +
+			"}),function(d) {return +d.EARNED_ECY})", "type" : "Program", "metric" : "ECY"},
+	"% of Prog EP" : {"label" : "Percent of ___ EP", "num" : "d.values.EP", "den" : "d3.sum(data.filter(" +
+			"function(d) {" +
+				"return  d.PROGRAM == prog & +d.Q_COMP >= date_ranges.losses_start & +d.Q_COMP <= date_ranges.losses_end" +
+			"}),function(d) {return +d.EARNED_PREM})", "type" : "Program", "metric" : "EP"},
+	"% of Prog WP" : {"label" : "Percent of ___ WP", "num" : "d.values.WP", "den" : "d3.sum(data.filter(" +
+			"function(d) {" +
+				"return  d.PROGRAM == prog & +d.Q_COMP >= date_ranges.losses_start & +d.Q_COMP <= date_ranges.losses_end" +
+			"}),function(d) {return +d.WRITTEN_PREM})", "type" : "Program", "metric" : "WP"},
+	"% of Prog Quotes" : {"label" : "Percent of Quotes", "num" : "d.values.QUOTES", "den" : "d3.sum(data.filter(" +
+			"function(d) {" +
+				"return   d.PROGRAM == prog & +d.Q_COMP >= date_ranges.rtr_start & +d.Q_COMP <= date_ranges.rtr_end" +
+			"}),function(d) {return +d.QUOTES})", "type" : "Program", "metric" : "Quotes"},
+	"% of Total ECY's" : {"label" : "___ ECY Count", "num" : "d.values.ECY", "den" : "d3.sum(data.filter(" +
+			"function(d) {" +
+				"return d.PROGRAM == 'TOTAL' & +d.Q_COMP >= date_ranges.losses_start & +d.Q_COMP <= date_ranges.losses_end" +
+			"}),function(d) {return +d.EARNED_ECY})", "type" : "Total", "metric" : "ECY's"},
+	"% of Total EP" : {"label" : "Percent of ___ EP ", "num" : "d.values.EP", "den" : "d3.sum(data.filter(" +
+			"function(d) {" +
+				"return d.PROGRAM == 'TOTAL' & +d.Q_COMP >= date_ranges.losses_start & +d.Q_COMP <= date_ranges.losses_end" +
+			"}),function(d) {return +d.EARNED_PREM})", "type" : "Total", "metric" : "EP"},
+	"% of Total WP" : {"label" : "Percent of ___ WP ", "num" : "d.values.WP", "den" : "d3.sum(data.filter(" +
+			"function(d) {" +
+				"return d.PROGRAM == 'TOTAL' & +d.Q_COMP >= date_ranges.losses_start & +d.Q_COMP <= date_ranges.losses_end" +
+			"}),function(d) {return +d.WRITTEN_PREM})", "type" : "Total", "metric" : "WP"},
+	"% of Total Quotes" : {"label" : "Quotes Count", "num" : "d.values.QUOTES", "den" : "d3.sum(data.filter(" +
+			"function(d) {" +
+				"return d.PROGRAM == 'TOTAL' & +d.Q_COMP >= date_ranges.rtr_start & +d.Q_COMP <= date_ranges.rtr_end" +
+			"}),function(d) {return +d.QUOTES})", "type" : "Total", "metric" : "Quotes"}};
+
+var parsequarter = d3.time.format("%Y%q");
+
+var formatquarter = d3.time.format("%Y-Q%q");
+var parseDate = d3.time.format("%Y-%m-%d");
+
+var margin = {"top" : 50, "left" : 40, "right" : 50, "bottom" : 40};
+var div_margin = {"top" : 30, "left" : 50, "right" : 30, "bottom" : 20};
+var svg_size = {"height" : 750 - margin.top - margin.bottom, "width" : 1300 - margin.left - margin.right};
+var div_svg_size = {"height" : 200 - div_margin.top - div_margin.bottom, "width" : 850 - div_margin.left - div_margin.right};
+
+var brush_margin = {"top" : 0, "left" : 40, "right" : 40, "bottom" : 60};
+var brush_size = {"height" : 100 - brush_margin.top - brush_margin.bottom, "width" : 330 - brush_margin.left - brush_margin.right};
+
+var color = d3.scale.category10();
+formatnum = d3.format(",.0f");
+formatdec = d3.format(",.2f");
+formatper = d3.format(",.0%");
+formatperded = d3.format(",.0%");
+
+var xScale = d3.scale.linear().range([0,svg_size.width]);
+var yScale = d3.scale.linear().range([svg_size.height,0]);
+var cScale = d3.scale.linear().range([0,50]);
+var cScale2 = d3.scale.linear().range([0,50]);
+
+var xAxis = d3.svg.axis().scale(xScale).orient("bottom").tickFormat(formatper).tickSize(-svg_size.height,0,0);
+var yAxis = d3.svg.axis().scale(yScale).orient("left").tickFormat(formatper).tickSize(-svg_size.width,0,0);
+
+var svg = d3.select("body")
+	.append("svg")
+		.attr("height", svg_size.height + margin.top + margin.bottom)
+		.attr("width", svg_size.width + margin.left + margin.right)
+		.append("g")
+			.attr("transform","translate(" + margin.left + "," + margin.top + ")");
+
+table_list = d3.json("php/php_table_list.php",function(error, list_tables) {
+optionbutton = svg.append("g")
+	.attr("transform","translate(" + svg_size.width + "," + (-margin.top) + ")");
+	
+optionbutton.append("rect")
+	.style("stroke","black")
+	.style("stroke-width","2px")
+	.attr("class","button")
+	.attr("width",margin.right)
+	.attr("height",margin.top)
+	.text("Open Legend")
+	.on("click",function(d) {
+	if(d3.select("#optionsdiv").attr("class") == "hidden") 
+		{
+		d3.select("#optionsdiv").classed("hidden",false);
+		d3.select(".optionsopen").text("Close");
+		}
+	else {
+		d3.select("#optionsdiv").classed("hidden",true);
+		d3.select(".optionsopen").text("Open");
+		};
+	d3.select("#legenddiv").classed("hidden",true); 
+	d3.select(".legendopen").text("Open");
+	});
+	
+optionbutton.append("text")
+	.attr("class","optionsopen")
+	.text("Open")
+	.attr("transform","translate(10,20)");
+optionbutton.append("text")
+	.text("Options")
+	.attr("transform","translate(6,32)");
+
+legendbutton = svg.append("g")
+	.attr("transform","translate(" + (svg_size.width - 5 - margin.right) + "," + (-margin.top) + ")");
+	
+legendbutton.append("rect")
+	.style("stroke","black")
+	.style("stroke-width","2px")
+	.attr("class","button")
+	.attr("width",margin.right)
+	.attr("height",margin.top)
+	.text("Open Options")
+	.on("click",function(d) {
+	if(d3.select("#legenddiv").attr("class") == "hidden") 
+		{
+		d3.select("#legenddiv").classed("hidden",false)
+		d3.select(".legendopen").text("Close");
+		}
+	else {
+		d3.select("#legenddiv").classed("hidden",true); 
+		d3.select(".legendopen").text("Open");
+		};
+	d3.select("#optionsdiv").classed("hidden",true); 
+	d3.select(".optionsopen").text("Open");
+	});
+	
+legendbutton.append("text")
+	.attr("class","legendopen")
+	.text("Open")
+	.attr("transform","translate(10,20)");
+	
+legendbutton.append("text")
+	.text("Legend")
+	.attr("transform","translate(6,32)");
+	
+var div = d3.select("body")
+	.append("div")
+		.attr("id","graphdiv")
+		.attr("class","hidden")
+		.on("click",function(d) {
+			d3.select("#graphdiv").classed("hidden",true)
+		});
+		
+legend_svg = div.append("svg")
+	.attr("class","keys")
+	.attr("height","30px")
+	.attr("width","70%");
+	
+var div_opt = d3.select("body")
+	.append("div")
+		.attr("id","optionsdiv")
+		.attr("class","hidden");
+	
+var div_options = div_opt.append("svg")
+	.attr("height","100%")
+	.attr("width","100%");
+
+var div_leg = d3.select("body")
+	.append("div")
+		.attr("id","legenddiv")
+		.attr("class","hidden");
+		
+var div_legend = div_leg.append("svg")
+	.attr("height","100%")
+	.attr("width","100%");
+
+div_options.append("text")
+	.attr("x","50%")
+	.attr("y",20)
+	.attr("text-anchor","middle")
+	.style("font-size","16px")
+	.style("font-weight","bold")
+	.text("Options");
+
+div_legend.append("text")
+	.attr("x","50%")
+	.attr("y",20)
+	.attr("text-anchor","middle")
+	.style("font-size","16px")
+	.style("font-weight","bold")
+	.text("Legend");
+
+div_opt.append("input")
+	.attr("id","y_min")
+	.attr("class","divobjects")
+	.attr("type","text");
+	
+div_opt.append("input")
+	.attr("id","x_min")
+	.attr("class","divobjects")
+	.attr("type","text");
+	
+div_opt.append("text")
+	.attr("id","tableListLabel")
+	.style("position","absolute")
+	.style("top","20%")
+	.style("left","15%")
+	.style("font-size","14px")
+	.text("Rating Factor");
+	
+div_leg.append("input")
+	.attr("id","find_box")
+	.attr("class","legobjects")
+	.attr("type","text")
+	.on("change",function(d) {var factor_show = document.getElementById("find_box").value
+		.toUpperCase().replace(/\ +/g," ").replace(/, /g,",").replace(/ /g,".factor").replace(/,/g,",.factor");
+	if(factor_show == ""){
+		svg.selectAll("circle").classed("mostlyhidden",false);
+	}
+	else {
+		svg.selectAll("circle").classed("mostlyhidden",true);
+		svg.selectAll(".factor" + factor_show).classed("mostlyhidden",false);
+	}
+	});
+	
+div_leg.append("input")
+	.attr("id","rRadius")
+	.attr("type","range")
+	.attr("min",1)
+	.attr("value",50)
+	.attr("max",200);
+
+div_legend.append("text")
+	.attr("x","81%")
+	.attr("y","37%")
+	.attr("class","range_text")
+	.attr("text-anchor","middle")
+	.text( +document.getElementById("rRadius").value);
+	
+	
+div_leg.append("cowhat");
+	
+div_leg.append("text")
+	.attr("id","find_text")
+	.attr("class","legobjects")
+	.text("Find:")
+	.style("font-size","14px");
+
+dropDown = div_opt.append("select")
+	.attr("id","tableList")
+	.style("position","absolute")
+	.style("top","25%")
+	.style("left","15%")
+	.on("change",pull_sql_data);
+;
+var options = dropDown.selectAll("option")
+	.data(list_tables)
+	.enter()
+	.append("option")
+		.text(function(d) {return d.FACTOR.replace(/_/g," ");})
+		.attr("value",function(d) {return d.FACTOR;});
+		
+dropDown.attr("selection","COUNTY")
+
+var coverages = ["TOTAL","PIP","PD","BI","CMP","COL"];
+var y_options = ["Reported Frequency", "Calendar Loss Ratio", "Accident Frequency","Accident Loss Ratio","Conversion"];
+var x_options = ["Conversion","Reported Frequency", "Calendar Loss Ratio", "Accident Frequency","Accident Loss Ratio"];
+var r_options = ["% of Prog ECY's", "% of Prog EP", "% of Prog Quotes", "% of Prog WP",
+					"% of Total ECY's", "% of Total EP", "% of Total Quotes", "% of Total WP"];
+
+var options_object = [{"text" : "Coverage", "text_label" : "cov_label", "option_label" : "cov_option", "option_list" : coverages, 
+		"text_x" : "68%", "text_y" : "20%", "option_x" : "70%", "option_y" : "25%"},
+	{"text" : "X Axis", "text_label" : "x_label", "option_label" : "x_option", "option_list" : x_options, 
+		"text_x" : "15%", "text_y" : "35%", "option_x" : "5%", "option_y" : "40%"},
+	{"text" : "Y Axis", "text_label" : "y_label", "option_label" : "y_option", "option_list" : y_options, 
+		"text_x" : "45%", "text_y" : "35%", "option_x" : "35%", "option_y" : "40%"},
+	{"text" : "Circle Size", "text_label" : "r_label", "option_label" : "r_option", "option_list" : r_options, 
+		"text_x" : "75%", "text_y" : "35%", "option_x" : "66%", "option_y" : "40%"}];
+		
+for (var i = 0;i<options_object.length;i++) {
+var changing = options_object[i].on_change;
+div_opt.append("text")
+	.attr("id",options_object[i].text_label)
+	.attr("class","redrawoptions")
+	.style("position","absolute")
+	.style("top",options_object[i].text_y)
+	.style("left",options_object[i].text_x)
+	.style("font-size","14px")
+	.text(options_object[i].text);
+	
+div_select = div_opt.append("select")
+	.attr("id",options_object[i].option_label)
+	.style("position","absolute")
+	.attr("class","redrawoptions")
+	.style("top",options_object[i].option_y)
+	.style("left",options_object[i].option_x);
+	
+div_select.selectAll("option")
+	.data(options_object[i].option_list)
+	.enter()
+	.append("option")
+		.text(function(d) {return d;})
+		.attr("value",function(d) {return d;});
+};
+	
+div_opt.append("input")
+	.attr("id","x_max")
+	.attr("class","divobjects")
+	.attr("type","text");
+	
+div_opt.append("input")
+	.attr("id","y_max")
+	.attr("class","divobjects")
+	.attr("type","text");
+	
+div_x_range = div_options.append("g");
+div_y_range = div_options.append("g");
+
+div_x_range.append("text")
+	.attr("x","25%")
+	.attr("y",50)
+	.attr("text-anchor","middle")
+	.style("font-size","14px")
+	.text("X Axis");
+	
+div_x_range.append("text")
+	.attr("x","5%")
+	.attr("y",70)
+	.attr("text-anchor","start")
+	.style("font-size","12px")
+	.text("Min: ");
+
+div_x_range.append("text")
+	.attr("x","30%")
+	.attr("y",70)
+	.attr("text-anchor","start")
+	.style("font-size","12px")
+	.text("Max: ");
+	
+div_y_range.append("text")
+	.attr("x","75%")
+	.attr("y",50)
+	.attr("text-anchor","middle")
+	.style("font-size","14px")
+	.text("Y Axis");
+	
+div_y_range.append("text")
+	.attr("x","55%")
+	.attr("y",70)
+	.attr("text-anchor","start")
+	.style("font-size","12px")
+	.text("Min: ");
+
+div_y_range.append("text")
+	.attr("x","80%")
+	.attr("y",70)
+	.attr("text-anchor","start")
+	.style("font-size","12px")
+	.text("Max: ");
+	
+div_options.append("option")
+	.attr("x","75%")
+	.attr("y",70)
+	.attr("text-anchor","middle")
+	.style("font-size","14px")
+	.text("Y Axis");
+
+
+
+
+div.append("p");
+
+svg_lr = div.append("svg")
+	.attr("id","lr_graph")
+	.attr("class","divgraphs")
+	.attr("height", div_svg_size.height + div_margin.top + div_margin.bottom)
+	.attr("width",div_svg_size.width + div_margin.right + div_margin.left)
+	.append("g")
+		.attr("transform","translate(" + div_margin.left + "," + div_margin.top + ")");
+
+div.append("p");
+
+svg_freq = div.append("svg")
+	.attr("id","freq_graph")
+	.attr("class","divgraphs")
+	.attr("height", div_svg_size.height + div_margin.top + div_margin.bottom)
+	.attr("width",div_svg_size.width + div_margin.right + div_margin.left)
+	.append("g")
+		.attr("transform","translate(" + div_margin.left + "," + div_margin.top + ")");
+
+div.append("p");
+
+svg_conv = div.append("svg")
+	.attr("id","conv_graph")
+	.attr("class","divgraphs")
+	.attr("height", div_svg_size.height + div_margin.top + div_margin.bottom)
+	.attr("width",div_svg_size.width + div_margin.right + div_margin.left)
+	.append("g")
+		.attr("transform","translate(" + div_margin.left + "," + div_margin.top + ")");
+		
+		
+
+// --------------------------------timing brush------------------------------------------------
+
+var brush_array = [{"data" : "rtr", "y_position" : "55%", "title" : "RTR Quarter Range", "title_y" : "53%"},
+	{"data" : "losses", "y_position" : "80%", "title" : "Experience Range", "title_y" : "78%"}];
+
+
+for (var i = 0; i<brush_array.length; i++) {
+
+
+brush = div_options.append("svg")
+	.attr("class","brushscale")
+	.attr("id",brush_array[i].data + "brush")
+	.attr("x","10%")
+	.attr("y",brush_array[i].y_position)
+	.attr("width",brush_size.width + brush_margin.right + brush_margin.left)
+	.attr("height",brush_size.height + brush_margin.top + brush_margin.bottom);
+div_options.append("text")
+	.attr("x","50%")
+	.attr("y",brush_array[i].title_y)
+	.style("text-anchor","middle")
+	.style("font-size","14px")
+	.text(brush_array[i].title);
+
+brush.append("rect")
+	.attr("height", brush_size.height + brush_margin.top)
+	.attr("width", brush_size.width + brush_margin.right + brush_margin.left)
+	.attr("fill","rgb(225,225,225)");
+
+};
+
+brush_body_rtr = d3.select("#rtrbrush").append("g")
+	.attr("transform","translate(" + brush_margin.left + "," + brush_margin.top + ")");
+
+brush_body_lr = d3.select("#lossesbrush").append("g")
+	.attr("transform","translate(" + brush_margin.left + "," + brush_margin.top + ")");
+
+var x = d3.scale.linear()
+	.range([0, brush_size.width]);
+		
+var arc = d3.svg.arc()
+	.outerRadius(brush_size.height / 2)
+	.startAngle(0)
+	.endAngle(function(d, i) { return i ? -Math.PI : Math.PI; });
+
+
+// ----------------------------end brush-----------------------------------------------------
+
+pull_sql_data();
+		
+function pull_sql_data() {
+var table2 = document.getElementById("tableList");
+var table = table2.options[table2.selectedIndex].value;
+
+
+var cov2 = document.getElementById("cov_option");
+var cov = cov2.options[cov2.selectedIndex].value;
+
+var d3json = d3.json("php/php_lr_scatter.php?table="+table+"&cov="+cov+"", function(error, data) {
+
+var dataset = data.forEach(function(d) {
+d.one_denom = 1;
+});	
+
+
+
+var date_ranges = {"rtr_start" : 0, "rtr_end" : 0, "losses_start" : 0, "losses_end" : 0};
+
+var cov2 = document.getElementById("cov_option");
+var cov = cov2.options[cov2.selectedIndex].value;
+
+var x_opt2 = document.getElementById("x_option");
+var x_opt = x_opt2.options[x_opt2.selectedIndex].value;
+
+var y_opt2 = document.getElementById("y_option");
+var y_opt = y_opt2.options[y_opt2.selectedIndex].value;
+
+var r_opt2 = document.getElementById("r_option");
+var r_opt = r_opt2.options[r_opt2.selectedIndex].value;
+
+
+quarter_lr = ((d3.nest()
+	.key(function(d) {return d.Q_LABEL;})
+	.rollup(function(qing) {return {"ECY": d3.sum(qing, function(d) {return +d.EARNED_ECY;})}})
+	.entries(data)).filter(function(d) {return d.values.ECY > 1})).map(function(d) {return d.key;});
+	
+quarter_rtr = ((d3.nest()
+	.key(function(d) {return d.Q_LABEL;})
+	.rollup(function(qing) {return {"QUOTES": d3.sum(qing, function(d) {return +d.QUOTES;})}})
+	.entries(data)).filter(function(d) {return d.values.QUOTES > 1})).map(function(d) {return d.key;});
+
+var n = null;
+	
+factor = (d3.nest()
+	.key(function(d) {return d.PROGRAM+"_"+d.FACTOR})
+	.rollup(function(qing) {return {"EP": d3.sum(qing, function(d) {return +d.EARNED_PREM || 0;}),
+		"WP": d3.sum(qing, function(d) {return +d.WRITTEN_PREM || 0;}),
+		"CALENDAR_CLAIM": d3.sum(qing, function(d) {
+			return (+d.CALENDAR_LOSS || 0);}),
+		"CALENDAR_CLAIM_COUNT": d3.sum(qing, function(d) {return (+d.CALENDAR_LOSS_COUNT || 0);}),
+		"ACCIDENT_CLAIM": d3.sum(qing, function(d) {
+			return (+d.ACCIDENT_LOSS || 0);}),
+		"ACCIDENT_CLAIM_COUNT": d3.sum(qing, function(d)  {return (+d.ACCIDENT_LOSS_COUNT || 0);}),
+		"ECY": d3.sum(qing, function(d) {return (+d.EARNED_ECY || 0);}),
+		"QUOTES":d3.sum(qing, function(d) {return (+d.QUOTES || 0);}),
+		"SALES": d3.sum(qing, function(d) {return (+d.SALES || 0);}),}})
+	.entries(data)).filter(function(d) {return +d.values.ECY > 1 & +d.values.EP > 10});
+
+//-------------------------------------- begin brush ----------------------------------------------
+
+	
+var brushaxis_rtr = d3.scale.ordinal()
+	.domain(quarter_rtr)
+	.rangePoints([0,brush_size.width]);
+	
+var brushaxis_lr = d3.scale.ordinal()
+	.domain(quarter_lr)
+	.rangePoints([0,brush_size.width]);
+	
+
+	
+var brush_rtr = d3.svg.brush()
+	.x(x)
+	.extent([0,1])
+    .on("brushstart", brushstart_rtr)
+    .on("brush", brushmove_rtr)
+	.on("brushend", brushend_rtr);
+	
+var brush_lr = d3.svg.brush()
+	.x(x)
+	.extent([0,1])
+    .on("brushstart", brushstart_lr)
+    .on("brush", brushmove_lr)
+	.on("brushend", brushend_lr);
+
+	
+brush_body_rtr.selectAll(".x.axis")
+	.data([1])
+	.enter()
+	.append("g")
+	.attr("class","x axis");
+brush_body_rtr.selectAll(".x.axis")
+	.attr("transform","translate(0," + (brush_size.height) + ")")
+	.call(d3.svg.axis()
+		.scale(brushaxis_rtr)
+		.orient("bottom")
+	)
+	.selectAll("text")
+		.style("text-anchor","end")
+		.attr("dx","-.8em")
+		.attr("dy",".15em")
+		.attr("transform", function(d) {return "rotate(-55)"});
+		
+brush_body_lr.selectAll(".x.axis")
+	.data([1])
+	.enter()
+	.append("g")
+	.attr("class","x axis");
+brush_body_lr.selectAll(".x.axis")
+	.attr("transform","translate(0," + (brush_size.height) + ")")
+	.call(d3.svg.axis()
+		.scale(brushaxis_lr)
+		.orient("bottom")
+	)
+	.selectAll("text")
+		.style("text-anchor","end")
+		.attr("dx","-.8em")
+		.attr("dy",".15em")
+		.attr("transform", function(d) {return "rotate(-55)"});
+		
+brush_body_rtr.selectAll("#rtr_brush")
+	.data([1])
+	.enter()
+	.append("g")
+	.attr("transform","translate(0,0)")
+	.attr("id","rtr_brush")
+	.attr("class","brush")
+	.call(brush_rtr);
+	
+var brushg_rtr = brush_body_rtr.selectAll("#rtr_brush")
+	.call(brush_rtr);
+	
+brush_body_lr.selectAll("#lr_brush")
+	.data([1])
+	.enter()
+	.append("g")
+	.attr("transform","translate(0,0)")
+	.attr("id","lr_brush")
+	.attr("class","brush")
+	.call(brush_lr);
+	
+var brushg_lr = brush_body_lr.selectAll("#lr_brush")
+	.call(brush_lr);
+
+brushg_rtr.selectAll("rect")
+    .attr("height", brush_size.height);
+	
+brushg_lr.selectAll("rect")
+    .attr("height", brush_size.height);
+
+	
+brushstart_rtr();
+brushmove_rtr();
+
+brushstart_lr();
+brushmove_lr();
+
+function brushstart_rtr() {
+  var s = brush_rtr.extent();
+  brush_body_rtr.classed("selecting", true);
+}
+
+function brushstart_lr() {
+  var s = brush_lr.extent();
+  brush_body_lr.classed("selecting", true);
+}
+
+function brushmove_rtr() {
+  var s = brush_rtr.extent();
+  date_ranges.rtr_start = +(quarter_rtr[Math.ceil(s[0]*(quarter_rtr.length-1))].replace("-Q",""));
+  date_ranges.rtr_end = +(quarter_rtr[Math.floor(s[1]*(quarter_rtr.length-1))].replace("-Q",""));
+}
+
+function brushmove_lr() {
+  var s = brush_lr.extent();
+  date_ranges.losses_start = +(quarter_lr[Math.ceil(s[0]*(quarter_lr.length-1))].replace("-Q",""));
+  date_ranges.losses_end = +(quarter_lr[Math.floor(s[1]*(quarter_lr.length-1))].replace("-Q",""));
+}
+
+function brushend_rtr() {
+redraw2();
+}
+
+function brushend_lr() {
+redraw2();
+}
+
+//---------------------------------------end brush -------------------------------------------------
+
+xScaleDomain = {"min" : 0, "max" : (d3.max(factor, 
+	function(d) {return d.values[data_used[x_opt].num]/d.values[data_used[x_opt].den];}) + .01)};
+
+yScaleDomain = {"min" : 0, "max" : (d3.max(factor.filter(function(d) {return d.values[data_used[y_opt].den] > 1}), 
+	function(d) {return d.values[data_used[y_opt].num]/d.values[data_used[y_opt].den];}))};
+
+d3.select("#x_min").attr("placeholder",formatdec(xScaleDomain.min)).attr("value",formatdec(xScaleDomain.min));
+d3.select("#x_max").attr("placeholder",formatdec(xScaleDomain.max)).attr("value",formatdec(xScaleDomain.max));
+d3.select("#y_min").attr("placeholder",formatdec(yScaleDomain.min)).attr("value",formatdec(yScaleDomain.min));
+d3.select("#y_max").attr("placeholder",formatdec(yScaleDomain.max)).attr("value",formatdec(yScaleDomain.max));
+d3.selectAll(".redrawoptions").on("change",pull_sql_data);
+d3.selectAll(".divobjects").on("change",redraw);
+d3.select("#rRadius").on("change", function(d) {
+		d3.select(".range_text").text( +document.getElementById("rRadius").value);
+		cScale.range([0, +document.getElementById("rRadius").value]);
+		redraw();
+	})
+	
+
+redraw();
+
+function redraw2() {
+
+
+var cov2 = document.getElementById("cov_option");
+var cov = cov2.options[cov2.selectedIndex].value;
+
+var x_opt2 = document.getElementById("x_option");
+var x_opt = x_opt2.options[x_opt2.selectedIndex].value;
+
+var y_opt2 = document.getElementById("y_option");
+var y_opt = y_opt2.options[y_opt2.selectedIndex].value;
+
+var r_opt2 = document.getElementById("r_option");
+var r_opt = r_opt2.options[r_opt2.selectedIndex].value;
+
+factor = (d3.nest()
+	.key(function(d) {return d.PROGRAM+"_"+d.FACTOR})
+	.rollup(function(qing) {return {"EP": d3.sum(qing, function(d) {
+		if( +d.Q_COMP >= date_ranges.losses_start& +d.Q_COMP <= date_ranges.losses_end) 
+		{return +d.EARNED_PREM || 0;}}),
+		"WP": d3.sum(qing, function(d) {if( +d.Q_COMP >= date_ranges.losses_start& +d.Q_COMP <= date_ranges.losses_end) {return +d.WRITTEN_PREM || 0;}}),
+		"CALENDAR_CLAIM": d3.sum(qing, function(d) {
+			if( +d.Q_COMP >= date_ranges.losses_start & +d.Q_COMP <= date_ranges.losses_end)  {
+			return (+d.CALENDAR_LOSS || 0);}}),
+		"CALENDAR_CLAIM_COUNT": d3.sum(qing, function(d) {
+			if(+d.Q_COMP >= date_ranges.losses_start& +d.Q_COMP <= date_ranges.losses_end)  {return (+d.CALENDAR_LOSS_COUNT || 0);}}),
+		"ACCIDENT_CLAIM": d3.sum(qing, function(d) {
+			if(+d.Q_COMP >= date_ranges.losses_start& +d.Q_COMP <= date_ranges.losses_end)  {
+			return (+d.ACCIDENT_LOSS || 0);}}),
+		"ACCIDENT_CLAIM_COUNT": d3.sum(qing, function(d) {
+			if( +d.Q_COMP >= date_ranges.losses_start& +d.Q_COMP <= date_ranges.losses_end)  {return (+d.ACCIDENT_LOSS_COUNT || 0);}}),
+		"ECY": d3.sum(qing, function(d) {
+			if(+d.Q_COMP >= date_ranges.losses_start& +d.Q_COMP <= date_ranges.losses_end)  {return (+d.EARNED_ECY || 0);}}),
+		"QUOTES":d3.sum(qing, function(d) {
+			if( +d.Q_COMP >= date_ranges.rtr_start& +d.Q_COMP <= date_ranges.rtr_end)
+			{return (+d.QUOTES || 0);}}),
+		"SALES": d3.sum(qing, function(d) {
+			if( +d.Q_COMP >= date_ranges.rtr_start& +d.Q_COMP <= date_ranges.rtr_end)
+			{return (+d.SALES || 0);}}),}})
+	.entries(data)).filter(function(d) {return +d.values.ECY > 1 & +d.values.EP > 10 & +d.values.QUOTES > 1});
+	
+
+xScaleDomain = {"min" : 0, "max" : (d3.max(factor, 
+	function(d) {return d.values[data_used[x_opt].num]/d.values[data_used[x_opt].den];})+.01)};
+
+yScaleDomain = {"min" : 0, "max" : d3.max(factor.filter(function(d) {return d.values[data_used[y_opt].den] > 1}), 
+	function(d) {return d.values[data_used[y_opt].num]/d.values[data_used[y_opt].den];})};
+d3.select("#x_min").attr("placeholder",formatdec(xScaleDomain.min)).attr("value",formatdec(xScaleDomain.min));
+d3.select("#x_max").attr("placeholder",formatdec(xScaleDomain.max)).attr("value",formatdec(xScaleDomain.max));
+d3.select("#y_min").attr("placeholder",formatdec(yScaleDomain.min)).attr("value",formatdec(yScaleDomain.min));
+d3.select("#y_max").attr("placeholder",formatdec(yScaleDomain.max)).attr("value",formatdec(yScaleDomain.max));
+redraw();
+};
+
+
+
+	
+function redraw() {
+
+var cov2 = document.getElementById("cov_option");
+var cov = cov2.options[cov2.selectedIndex].value;
+
+var x_opt2 = document.getElementById("x_option");
+var x_opt = x_opt2.options[x_opt2.selectedIndex].value;
+
+var y_opt2 = document.getElementById("y_option");
+var y_opt = y_opt2.options[y_opt2.selectedIndex].value;
+
+var r_opt2 = document.getElementById("r_option");
+var r_opt = r_opt2.options[r_opt2.selectedIndex].value;
+
+
+
+xScaleDomain = {"min" : +document.getElementById("x_min").value, "max" : +document.getElementById("x_max").value};
+
+yScaleDomain = {"min" : +document.getElementById("y_min").value, "max" : +document.getElementById("y_max").value};
+dataset = xScaleDomain.max - xScaleDomain.min;
+if((xScaleDomain.max - xScaleDomain.min) < .07) {
+fortmatnum = 1}
+else {fortmatnum = 0};
+formatperaxis = d3.format("." + fortmatnum + "%");
+xAxis.tickFormat(formatperaxis);
+xScale.domain([xScaleDomain.min,xScaleDomain.max]);
+
+yScale.domain([yScaleDomain.min,yScaleDomain.max]);
+
+d3.selectAll("title").remove();
+
+x_axis = svg.selectAll(".x.axis").call(xAxis)
+	.attr("class","x axis");
+x_axis.attr("transform","translate(0," + svg_size.height + ")")
+	.data([1])
+	.enter()
+	.append("g")
+	.call(xAxis)
+	.attr("class","x axis")
+	.attr("transform","translate(0," + svg_size.height + ")")
+	.append("text")
+		.attr("x",(svg_size.width))
+		.attr("y",-10)
+		.attr("class","xlabel")
+		.attr("text-anchor","end")
+		.style("font-size","12px")
+		.text(data_used[x_opt].label.replace("___",cov));
+x_axis.select(".xlabel")
+	.text(data_used[x_opt].label.replace("___",cov));
+
+y_axis = svg.selectAll(".y.axis")
+	.call(yAxis)
+	.attr("class","y axis");
+y_axis.data([1])
+	.enter()
+	.append("g")
+	.call(yAxis)
+	.attr("class","y axis")
+	.append("text")
+      .attr("transform", "rotate(-90)")
+	  .attr("class","ylabel")
+      .attr("y", 6)
+      .attr("dy", ".71em")
+      .style("text-anchor", "end")
+	  .style("font-size","12px")
+      .text(data_used[y_opt].label.replace("___",cov));
+y_axis.select(".ylabel")
+	.text(data_used[y_opt].label.replace("___",cov));
+
+svg_circles =svg.selectAll("circle")
+	.data(factor.sort(function(a,b) {
+		var progA = a.key.split('_')[0]; 
+		progB = b.key.split('_')[0];
+		return +b.values.ECY/d3.sum(data.filter(function(d) {
+			return d.PROGRAM == progB & +d.Q_COMP >= date_ranges.losses_start & +d.Q_COMP <= date_ranges.losses_end
+		}),function(d) {return +d.EARNED_ECY})
+			- +a.values.ECY/d3.sum(data.filter(function(d) {
+				return d.PROGRAM == progA & +d.Q_COMP >= date_ranges.losses_start & +d.Q_COMP <= date_ranges.losses_end
+			}),function(d) {return +d.EARNED_ECY})
+			
+	}));
+svg_circles.enter()
+	.append("circle");
+
+svg_circles
+	.transition(500)
+	.duration(1000)
+	.attr("fill",function(d) {return color(d.key.split('_')[0])})
+	.attr("cy",function(d) {return yScale(d.values[data_used[y_opt].num]/d.values[data_used[y_opt].den]);})
+	.attr("cx",function(d) {return xScale(d.values[data_used[x_opt].num]/d.values[data_used[x_opt].den]);})
+	.attr("class",function(d) {return d.key.split('_')[0] + " factor" + d.key.split('_')[1].replace(/ /g," factor")})
+	.attr("program",function(d) {return d.key.split('_')[0]})
+	.attr("r",function(d) {var prog = d.key.split('_')[0];
+		return cScale(Math.sqrt(eval(data_used[r_opt].num)/eval(data_used[r_opt].den)));
+	});
+	svg_circles
+	.on("click",function(d) {return make_chart(d.key.split('_')[0],d.key.split('_')[1]);})
+	.append("title")
+		.html(function(d) {var prog = d.key.split('_')[0]; 
+			return table.replace(/_/g," ") + ": " + d.key.split('_')[1] 
+			+ "</br>Program: " + d.key.split('_')[0]
+			+"</br>" + cov + " EP: " + formatnum(d.values.EP) 
+			+ "</br>" + cov + " ECY: " + formatnum(d.values.ECY) 
+			+ "</br>Calendar " + cov + " Claim Amount: " + formatnum(d.values.CALENDAR_CLAIM)
+			+ "</br>Calendar " + cov + " Claim Count: " + formatnum(d.values.CALENDAR_CLAIM_COUNT)
+			+ "</br>Calendar " + cov + " LR: " + formatper((d.values.CALENDAR_CLAIM)/d.values.EP)
+			+ "</br>Calendar " + cov + " Frequency: " + formatper((d.values.CALENDAR_CLAIM_COUNT)/d.values.ECY)
+			+ "</br>Accident " + cov + " Claim Amount: " + formatnum(d.values.ACCIDENT_CLAIM)
+			+ "</br>Accident " + cov + " Claim Count: " + formatnum(d.values.ACCIDENT_CLAIM_COUNT)
+			+ "</br>Accident " + cov + " LR: " + formatper((d.values.ACCIDENT_CLAIM)/d.values.EP)
+			+ "</br>Accident " + cov + " Frequency: " + formatper((d.values.ACCIDENT_CLAIM_COUNT)/d.values.ECY)
+			+ "</br>% of " + cov + " " + prog + " ECY: " + formatper(d.values.ECY/
+				d3.sum(data.filter(function(d) {
+					return (d.PROGRAM == prog & +d.Q_COMP >= date_ranges.losses_start & +d.Q_COMP <= date_ranges.losses_end)
+				}),function(d) {return +d.EARNED_ECY}))
+			+ "</br>% of " + cov + " " + prog + " EP: " + formatper(d.values.EP/
+				d3.sum(data.filter(function(d) {
+					return (d.PROGRAM == prog & +d.Q_COMP >= date_ranges.losses_start & +d.Q_COMP <= date_ranges.losses_end)
+				}),function(d) {return +d.EARNED_PREM}))
+			+ "</br></br>Quote Count: " +formatnum(d.values.QUOTES) 
+			+ "</br>Sales: " + formatnum(d.values.SALES)
+			+ "</br>Conversion: " + formatperded(d.values.SALES/d.values.QUOTES)});
+				
+svg_circles.exit()
+	.remove();
+svg.selectAll("#graphtitle")
+	.data([1])
+	.enter()
+	.append("text")
+	.attr("id","graphtitle");
+	
+svg.selectAll("#graphtitle")
+	.attr("id","graphtitle")
+	.attr("x",(svg_size.width/2))
+	.attr("y",0 - (margin.top / 2))
+	.attr("text-anchor","middle")
+	.style("font-size","16px")
+	.style("text-decoration","underline")
+	.text(data_used[y_opt].label.replace("___",cov) + " vs " + data_used[x_opt].label.replace("___",cov) + 
+		" by " + table.replace(/_/g," "));
+
+legend_program = d3.nest()
+	.key(function(d) {return d.key.split('_')[0];})
+	.entries(factor);
+
+legend_circles = [.05,.1,.25,.5];
+legend_circles_labels = ["5% of ","10% of ","25% of ","50% of "]
+legend_circles_gap = [35,48,61,74];
+
+prog_label = div_legend.selectAll("text.proglabel")
+	.data(legend_program);
+	
+prog_label.enter()
+	.append("text")
+		.attr("class",function(d) {return "proglabel " + d.key})
+		.attr("text-anchor","middle")
+		.attr("x",function(d,i) {return (15 * (i + 1)) + "%"})
+		.attr("y","10%")
+		.attr("fill",function(d) {return color(d.key)})
+		.text(function(d) {return d.key})
+		.style("font-size","14px");
+
+prog_label.enter()
+	.append("circle")
+		.attr("class",function(d) {return d.key + " proglabel"})
+		.attr("cy","20%").attr("cx",function(d,i) {return (15 * (i + 1)) + "%"})
+		.attr("r",cScale(Math.sqrt(.25)))
+		.attr("fill",function(d) {return color(d.key)});
+		
+d3.selectAll(".proglabel")
+	.on("click", function(d) {var thisclass = (d3.select(this).attr("class"));
+		var prog = (d3.select(this).attr("class")).split(' ')[0];
+		if(thisclass.indexOf("semihidden") > 0) {
+			d3.selectAll("." + prog).classed("hidden",false);
+			d3.selectAll("." + prog + ".proglabel").classed("semihidden",false);
+		}
+		else {
+			d3.selectAll("." + prog).classed("hidden",true);
+			d3.selectAll("." + prog + ".proglabel").classed("hidden",false);
+			d3.selectAll("." + prog + ".proglabel").classed("semihidden",true);		
+		}
+	});
+
+size_label = div_legend.selectAll(".sizelabel")
+	.data(legend_circles)
+	.text(function(d, i) {return legend_circles_labels[i] + data_used[r_opt].type + " " + data_used[r_opt].metric});
+
+size_label.enter()
+	.append("text")
+		.attr("class","sizelabel")
+		.attr("x","10%")
+		.style("font-size","14px")
+		.attr("y",function(d,i) {return legend_circles_gap[i] + "%"})
+		.text(function(d, i) {return legend_circles_labels[i] + data_used[r_opt].type + " " + data_used[r_opt].metric});
+
+size_label.enter()
+	.append("circle")
+		.attr("class","sizecircle")
+		.attr("cy",function(d,i) {return legend_circles_gap[i] + "%"})
+		.attr("cx","65%")
+		.attr("r", function(d) {return cScale(Math.sqrt(d))});
+
+div_legend.selectAll(".sizecircle")
+	.data(legend_circles)
+	.attr("r", function(d) {return cScale(Math.sqrt(d))})
+
+function make_chart(program, factor) {
+
+d3.select("#graphdiv").classed("hidden",false);
+
+d3.select("#graphdiv").select("p").text(program + " - " + factor);
+
+var graphs = [svg_lr, svg_freq, svg_conv];
+var num = ["d.CALENDAR_LOSS","d.CALENDAR_LOSS_COUNT", "d.SALES"];
+var den = ["EARNED_PREM","EARNED_ECY", "QUOTES"];
+var label = ["Calendar " + cov + " Loss Ratio", "Calendar " + cov + " Frequency", "Conversion"];
+
+var factor2 = factor;
+for (var i = 0; i< graphs.length; i++) {
+var filter_data = (d3.nest()
+	.key(function(d) {return d.Q_LABEL})
+	.rollup(function(qing) {
+	return {
+	"program" : program,
+	"number": d3.sum(qing, function(d) {return +eval(num[i]);})/
+		d3.sum(qing, function(d) {return +d[den[i]];})}})
+	.entries(data.filter(function(d) {return d.PROGRAM == program & d.FACTOR == factor})))
+	.filter(function(d) {return isNaN(d.values.number) != true;});
+	
+var quarter_data = (d3.nest()
+	.key(function(d) {return d.Q_LABEL})
+	.rollup(function(qing) {
+	return {"number": d3.sum(qing, function(d) {return +eval(num[i]);})/
+		d3.sum(qing.filter(function(d) {
+		return (graphs[i] != svg_conv | (table != 'percentDown' & table != 'eft') | d.FACTOR == "NONE" | d.FACTOR == "34%") ;
+		}), function(d) {return +d[den[i]];})}})
+	.entries(data.filter(function(d) {
+	return d.PROGRAM == program})))
+	.filter(function(d) {return isNaN(d.values.number) != true;});
+var xScale2 = d3.scale.ordinal()
+	.rangePoints([0,div_svg_size.width])
+	.domain(quarter_data.map(function(d) {return d.key}));
+
+var max_y = d3.max([d3.max(filter_data, function(d) {return d.values.number}),
+	d3.max(quarter_data, function(d) {return d.values.number})]);
+
+var yScale2 = d3.scale.linear()
+	.range([div_svg_size.height,0])
+	.domain([0,max_y]);
+
+var xAxis2 = d3.svg.axis()
+	.scale(xScale2)
+	.orient("bottom")
+	.tickSize(0,0,-div_svg_size.height);
+
+tickamount = d3.min([8,Math.ceil(100*max_y)]);	
+var fortmatnum = 0;
+if(tickamount > 1) {
+fortmatnum = 0}
+else {fortmatnum = 1};
+formatperaxis = d3.format("." + fortmatnum + "%");
+
+var yAxis2 = d3.svg.axis()
+	.scale(yScale2)
+	.orient("left")
+	.tickFormat(formatperaxis)
+	.ticks(tickamount)
+	.tickSize(-div_svg_size.width,0,0);
+
+var valueline = d3.svg.line()
+	.interpolate("linear")
+	.x(function(d) { return xScale2(d.key); })
+	.y(function(d) { return yScale2(d.values.number); });
+	
+var valueline2 = d3.svg.line()
+	.interpolate("linear")
+	.x(function(d) { return xScale2(d.key); })
+	.y(function(d) { return yScale2(d.values.number); });
+
+graphs[i].selectAll("g").remove();
+graphs[i].selectAll("path").remove();
+graphs[i].selectAll("line").remove();
+graphs[i].selectAll("text").remove();
+legend_svg.selectAll(".legobj").remove();
+
+legend_svg.append("text")
+	.attr("class","legobj")
+	.text(program + '-' + factor)
+	.attr("x","15%")
+	.style("fill",color(program))
+	.attr("dy",".3em")
+	.attr("y","50%");
+	
+legend_svg.append("line")
+	.attr("class","legobj")
+	.style("stroke",color(program))
+		.attr("x1", "6%")
+		.attr("x2", "13%")
+		.attr("y1","50%")
+		.attr("y2","50%")
+		.style("stroke-width",5);
+	
+legend_svg.append("text")
+	.attr("class","legobj")
+	.text(program + '-' + factor + " Best Fit Line")
+	.attr("x","47%")
+	.style("fill",color(program))
+	.attr("dy",".3em")
+	.attr("y","50%");
+	
+legend_svg.append("line")
+	.attr("class","legobj")
+	.style("stroke",color(program))
+		.attr("x1", "38%")
+		.attr("x2", "45%")
+		.attr("y1","50%")
+		.attr("y2","50%")
+		.style("stroke-width",1)
+		.style("stroke-dasharray",("10,15"));
+		
+legend_svg.append("text")
+	.attr("class","legobj")
+	.text(program + '-Total')
+	.attr("x","90%")
+	.style("fill",color(program))
+	.attr("dy",".3em")
+	.attr("y","50%");
+	
+legend_svg.append("line")
+	.attr("class","legobj")
+	.style("stroke",color(program))
+		.attr("x1", "81%")
+		.attr("x2", "88%")
+		.attr("y1","50%")
+		.attr("y2","50%")
+		.style("stroke-width",2)
+		.style("stroke-dasharray",("3,3"));
+
+graphs[i].append("g")
+	.call(xAxis2)
+	.attr("class","x axis main")
+	.attr("transform","translate(0," + div_svg_size.height + ")");
+
+graphs[i].append("g")
+	.call(yAxis2)
+	.attr("class","y axis main");
+
+graphs[i].append("path")
+	.data(filter_data)
+	.style("stroke",function(d) {return color(program)})
+	.attr("d",valueline(filter_data))
+	.attr("stroke-width",5);
+	
+graphs[i].append("path")
+	.data(filter_data)
+	.style("stroke",function(d) {
+	return color(program)})
+	.attr("d",valueline2(quarter_data))
+	.attr("stroke-width",2)
+	.style("stroke-dasharray",("3,3"));
+
+graphs[i].append("text")
+	.attr("x",(div_svg_size.width/2))
+	.attr("y",0 - (div_margin.top / 2))
+	.attr("text-anchor","middle")
+	.style("font-size","16px")
+	.style("text-decoration","underline")
+	.text(label[i]);
+
+xLabels = filter_data.map(function(d) {return d.key});
+xSeries = d3.range(1, xLabels.length + 1);
+ySeries = filter_data.map(function(d) {return (+d.values.number)});
+
+leastSquaresCoeff = leastSquares(xSeries,ySeries);
+
+trendData = [[xLabels[0],(leastSquaresCoeff[0] + leastSquaresCoeff[1]),
+	xLabels[xLabels.length - 1], (leastSquaresCoeff[0] * xLabels.length + leastSquaresCoeff[1])]];
+
+graphs[i].selectAll(".trendline")
+	.data(trendData)
+	.enter()
+	.append("line")
+		.attr("class","trendline")
+		.style("stroke",color(program))
+		.attr("x1", function(d) {return xScale2(d[0])})
+		.attr("y1", function(d) {return yScale2(d[1])})
+		.attr("x2", function(d) {return xScale2(d[2])})
+		.attr("y2", function(d) {return yScale2(d[3])})
+		.style("stroke-width",1)
+		.style("stroke-dasharray",("10,15"));
+
+
+};
+};	
+		
+	// returns slope, intercept and r-square of the line
+	function leastSquares(xSeries, ySeries) {
+		var reduceSumFunc = function(prev, cur) { return prev + cur; };
+		
+		var xBar = xSeries.reduce(reduceSumFunc) * 1.0 / xSeries.length;
+		var yBar = ySeries.reduce(reduceSumFunc) * 1.0 / ySeries.length;
+
+		var ssXX = xSeries.map(function(d) { return Math.pow(d - xBar, 2); })
+			.reduce(reduceSumFunc);
+		
+		var ssYY = ySeries.map(function(d) { return Math.pow(d - yBar, 2); })
+			.reduce(reduceSumFunc);
+			
+		var ssXY = xSeries.map(function(d, i) { return (d - xBar) * (ySeries[i] - yBar); })
+			.reduce(reduceSumFunc);
+			
+		var slope = ssXY / ssXX;
+		var intercept = yBar - (xBar * slope);
+		var rSquare = Math.pow(ssXY, 2) / (ssXX * ssYY);
+		
+		return [slope, intercept, rSquare];
+	}
+
+
+};	
+	
+	
+});
+
+};
+});
+</script>
+
+
+</body>

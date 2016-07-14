@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style type="text/css">
+.blank_rect {
+  fill: transparent;
+  shape-rendering: crispEdges;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.1);
+  shape-rendering: crispEdges;
+}
+
+.lines {
+	opacity: .2;
+}
+
+.axisLine {
+  fill: none;
+  shape-rendering: crispEdges;
+  stroke: rgba(0, 0, 0, 0.5);
+  stroke-width: 2px;
+}
+
+.dot {
+  fill-opacity: .8;
+  stroke-opacity: .8;
+  stroke: black;
+}
+
+.inactive {
+	opacity: .1;
+	pointer-events: none;
+}
+
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+/* Style northward tooltips differently */
+.d3-tip.n:after {
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+}
+
+.tooltip {
+        position: absolute;
+        width: 130px;
+        height: auto;
+        padding: 10px;
+		padding-left: 25px;
+        background-color: white;
+        -webkit-border-radius: 10px;
+        -moz-border-radius: 10px;
+        border-radius: 10px;
+        -webkit-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+        -moz-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+        box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+        pointer-events: none;
+}
+
+
+</style>
+  <head>
+    <meta charset="utf-8">
+    <title>Agent Groupings</title>
+	<h1>Agent Groupings</h1>
+  </head>
+<body>
+    <div id="scatter"></div>
+    
+
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+<script>
+var classes = "";
+var nb_quantile;
+var percentiles = { nb : {line1: '', line2: '', line3: '', line4: ''},
+	 quotes : {line1: '', line2: '', line3: '', line4: ''}};
+var margin = { top: 5, right: 300, bottom: 50, left: 50 },
+    outerWidth = 1500,
+    outerHeight = 645,
+    width = outerWidth - margin.left - margin.right,
+    height = outerHeight - margin.top - margin.bottom;
+
+var x = d3.scale.linear()
+    .range([0, width]).nice();
+
+var y = d3.scale.linear()
+    .range([height, 0]).nice();
+
+var xCat = "L30_DAY_NB",
+    yCat = "L30_DAY_QUOTES",
+    rCat = "L30_DAY_QUOTES",
+    colorCat = "AGENT_REP";
+
+
+d3.csv("data/agent_groupings.csv", function(data) {
+  data.forEach(function(d) {
+  });
+dataset = data;
+  var xMax = d3.max(data, function(d) { return +d[xCat]; }) * 1.05,
+      xMin = d3.min(data, function(d) { return +d[xCat]; }),
+      xMin = xMin > 0 ? 0 : xMin,
+      yMax = d3.max(data, function(d) { return +d[yCat]; }) * 1.05,
+      yMin = d3.min(data, function(d) { return +d[yCat]; }),
+      yMin = yMin > 0 ? 0 : yMin;
+
+  x.domain([xMin, xMax]);
+  y.domain([yMin, yMax]);
+
+  var xAxis = d3.svg.axis()
+      .scale(x)
+      .orient("bottom")
+      .tickSize(-height);
+
+  var yAxis = d3.svg.axis()
+      .scale(y)
+      .orient("left")
+      .tickSize(-width);
+
+  var color = d3.scale.category10();
+
+    var tip = d3.tip()
+      .attr("class", "d3-tip")
+      .offset([-10, 0])
+      .html(function(d) {
+        return "Agent: " + d.AGENT_NAME + "<br>" + "Number: " + d.AGENT_NUMBER + "<br>" + "Rep: " + d.AGENT_REP + "<br>" +
+		"New Business: " + d[xCat] + "<br>" + "Quotes: " + d[yCat];
+      });
+
+  
+  var zoomBeh = d3.behavior.zoom()
+      .x(x)
+      .y(y)
+      .scaleExtent([0, 500])
+      .on("zoom", zoom);
+
+  var svg = d3.select("#scatter")
+    .append("svg")
+      .attr("width", outerWidth)
+      .attr("height", outerHeight)
+    .append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+      .call(zoomBeh);
+
+	 
+  svg.call(tip); 
+
+  svg.append("rect").attr("class","blank_rect")
+      .attr("width", width)
+      .attr("height", height);
+
+  svg.append("g")
+      .classed("x axis", true)
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis)
+    .append("text")
+      .classed("label", true)
+      .attr("x", width)
+      .attr("y", margin.bottom - 10)
+      .style("text-anchor", "end")
+      .text("30 Day New Business");
+
+  svg.append("g")
+      .classed("y axis", true)
+      .call(yAxis)
+    .append("text")
+      .classed("label", true)
+      .attr("transform", "rotate(-90)")
+      .attr("y", -margin.left)
+      .attr("dy", ".71em")
+      .style("text-anchor", "end")
+      .text("30 Day Quotes");
+
+  var objects = svg.append("svg")
+      .classed("objects", true)
+      .attr("width", width)
+      .attr("height", height);
+	var rectangles = objects.append("g");
+
+  objects.append("svg:line")
+      .classed("axisLine hAxisLine", true)
+      .attr("x1", 0)
+      .attr("y1", 0)
+      .attr("x2", width)
+      .attr("y2", 0)
+      .attr("transform", "translate(0," + height + ")");
+
+  objects.append("svg:line")
+      .classed("axisLine vAxisLine", true)
+      .attr("x1", 0)
+      .attr("y1", 0)
+      .attr("x2", 0)
+      .attr("y2", height);
+
+  objects.selectAll(".dot")
+      .data(data)
+    .enter().append("circle")
+	.attr("class",function(d) {return d.AGENT_REP;})
+      .classed("dot", true)
+      .attr("r", 5)
+      .attr("transform", transform)
+      .style("fill", function(d) { return color(d[colorCat]); })
+      .on("mouseover", tip.show)
+      .on("mouseout", tip.hide)
+	  ;
+
+  var legend = svg.selectAll(".legend")
+      .data(color.domain())
+    .enter().append("g")
+		.attr("class",function(d) {return d;})
+      .classed("legend", true)
+      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; })
+	  .on("mouseover", function(d) {
+	  classes = d3.select(this).attr("class");
+	  classes = classes.split(" ")[0];
+	  d3.selectAll(".dot").classed("inactive",true);
+	  d3.selectAll(".legend").style("opacity",.1);
+	  d3.selectAll(".legend." + classes).style("opacity",1);
+	  d3.selectAll("." + classes).classed("inactive",false);
+	  quintiles();
+	  })
+	  .on("mouseout", function(d) {
+	  classes = "";
+	  classes = classes.split(" ")[0];
+	  d3.selectAll(".legend").style("opacity",1);
+	  d3.selectAll(".dot").classed("inactive",false);
+	  quintiles();
+	  });
+
+
+
+  legend.append("circle")
+      .attr("r", 3.5)
+      .attr("cx", width + 20)
+      .attr("fill", color);
+
+  legend.append("text")
+      .attr("x", width + 26)
+      .attr("dy", ".35em")
+      .text(function(d) { return d; });
+
+
+  function change() {
+    xCat = "L30_DAY_NB";
+    xMax = d3.max(data, function(d) { return d[xCat]; });
+    xMin = d3.min(data, function(d) { return d[xCat]; });
+
+    zoomBeh.x(x.domain([xMin, xMax])).y(y.domain([yMin, yMax]));
+
+    var svg = d3.select("#scatter").transition();
+
+    svg.select(".x.axis").duration(750).call(xAxis).select(".label").text(xCat);
+
+    objects.selectAll(".dot").transition().duration(1000).attr("transform", transform);
+  }
+quintiles();
+function quintiles() {
+	nb_data = data.filter(function(d) {return d.AGENT_REP.indexOf(classes) >= 0;})
+	.map(function(d) {
+	return +d.L30_DAY_NB;
+	}).sort(function(a,b) 
+		{
+		return a - b;
+		});
+	percentiles.nb.line1 = d3.quantile(nb_data,0) - .5;
+	percentiles.nb.line2 = d3.quantile(nb_data,1/3) + .5;
+	percentiles.nb.line3 = d3.quantile(nb_data,2/3) + .5;
+	percentiles.nb.line4 = d3.quantile(nb_data,1) + .5;
+	
+	quotes_data = data.filter(function(d) {return d.AGENT_REP.indexOf(classes) >= 0;})
+	.map(function(d) {
+	return +d.L30_DAY_QUOTES;
+	}).sort(function(a,b) 
+		{
+		return a - b;
+		});
+	
+	percentiles.quotes.line1 = d3.quantile(quotes_data,0) - .5;
+	percentiles.quotes.line2 = d3.quantile(quotes_data,1/3) + .5;
+	percentiles.quotes.line3 = d3.quantile(quotes_data,2/3) + .5;
+	percentiles.quotes.line4 = d3.quantile(quotes_data,1) + .5;
+	
+	
+
+buckets = [{name: 'III-III', label: 'Lowest NB, Lowest Quotes', opacity: .2, x1: percentiles.nb.line1, 
+		x2: percentiles.nb.line2, y1: percentiles.quotes.line1, y2: percentiles.quotes.line2},
+		{name: 'III-II', label: 'Lowest NB, Middle Quotes', opacity: .1, x1: percentiles.nb.line1, 
+		x2: percentiles.nb.line2, y1: percentiles.quotes.line2, y2: percentiles.quotes.line3},
+		{name: 'III-I', label: 'Lowest NB, Highest Quotes', opacity: .2, x1: percentiles.nb.line1, 
+		x2: percentiles.nb.line2, y1: percentiles.quotes.line3, y2: percentiles.quotes.line4},
+		{name: 'II-III', label: 'Middle NB, Lowest Quotes', opacity: .1, x1: percentiles.nb.line2, 
+		x2: percentiles.nb.line3, y1: percentiles.quotes.line1, y2: percentiles.quotes.line2},
+		{name: 'II-II', label: 'Middle NB, Middle Quotes', opacity: .2, x1: percentiles.nb.line2, 
+		x2: percentiles.nb.line3, y1: percentiles.quotes.line2, y2: percentiles.quotes.line3},
+		{name: 'II-I', label: 'Middle NB, Highest Quotes', opacity: .1, x1: percentiles.nb.line2, 
+		x2: percentiles.nb.line3, y1: percentiles.quotes.line3, y2: percentiles.quotes.line4},
+		{name: 'I-III', label: 'Highest NB, Lowest Quotes', opacity: .2, x1: percentiles.nb.line3, 
+		x2: percentiles.nb.line4, y1: percentiles.quotes.line1, y2: percentiles.quotes.line2},
+		{name: 'I-II', label: 'Highest NB, Middle Quotes', opacity: .1, x1: percentiles.nb.line3, 
+		x2: percentiles.nb.line4, y1: percentiles.quotes.line2, y2: percentiles.quotes.line3},
+		{name: 'I-I', label: 'Highest NB, Highest Quotes', opacity: .2, x1: percentiles.nb.line3, 
+		x2: percentiles.nb.line4, y1: percentiles.quotes.line3, y2: percentiles.quotes.line4}];	
+	
+d3.selectAll(".lines").remove();
+// III-III
+for (var i = 0;  i < buckets.length; i++)
+{
+rectangles.append("rect")
+	.attr("class","lines")
+	.attr("x",x(buckets[i].x1))
+	.attr("y",y(buckets[i].y2))
+	.attr("width",x(buckets[i].x2) - x(buckets[i].x1))
+	.attr("height",- y(buckets[i].y2) + y(buckets[i].y1))
+	.style("fill",function(d) {if(classes == "") {return "grey";} else {return color(classes);}})
+	.style("stroke","black")
+	.style("opacity",buckets[i].opacity)
+	.append("title").html(buckets[i].label)
+;
+
+}
+	
+	
+	}
+  
+  function zoom() {
+    svg.select(".x.axis").call(xAxis);
+    svg.select(".y.axis").call(yAxis);
+
+    svg.selectAll(".dot")
+        .attr("transform", transform);
+	quintiles();
+	
+  }
+
+  function transform(d) {
+    return "translate(" + x(d[xCat]) + "," + y(d[yCat]) + ")";
+  }
+  
+
+});
+</script>
+
+</body>
